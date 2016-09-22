@@ -1,0 +1,46 @@
+1234
+    1234
+1234 
+    1234 
+
+highway
+"highway"
+'highway'
+    highway
+highway 
+    highway 
+    'highway'
+'highway' 
+    'highway' 
+
+@id=17
+@id = 17
+
+@uid > 1234
+ @uid <= 23234
+
+highway = residential
+
+highway = node
+
+node
+"node"
+
+node & highway
+
+node highway
+
+(way highway) | (node amenity)
+
+! highway
+
+way & !highway
+
+highway ~ "_link$"
+
+highway=~"_link$"i
+
+name_1
+
+foo_
+
