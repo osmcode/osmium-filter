@@ -109,7 +109,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>>
     using rs = qi::rule<Iterator, comment_skipper<Iterator>, T...>;
 
     rs<> expression, paren_expression, term, factor, tag, primitive, key, attr_type, attr;
-    rs<std::string()> single_q_str, double_q_str, clean_string, string, oper_int, oper_str, oper_regex, attr_int, object_type;
+    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_int, oper_str, oper_regex, attr_int, object_type;
     rs<std::tuple<std::string, std::string, std::string>()> key_oper_str_value;
     rs<std::tuple<std::string, std::string, std::string, boost::optional<char>>()> key_oper_regex_value;
     rs<std::tuple<std::string, std::string, int64_t>()> attr_oper_int;
@@ -124,18 +124,21 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>>
         single_q_str   = qi::lit('\'')
                        > *(~qi::char_('\''))
                        > qi::lit('\'');
+        single_q_str.name("single quoted string");
 
         // double quoted string (XXX TODO: escapes, unicode)
         double_q_str   = qi::lit('"')
                        > *(~qi::char_('"'))
                        > qi::lit('"');
+        double_q_str.name("double quoted string");
 
-        // simple string as used in keys and values
-        clean_string   =   qi::char_("a-zA-Z")
+        // plain string as used in keys and values
+        plain_string   =   qi::char_("a-zA-Z")
                        >> *qi::char_("a-zA-Z0-9:_");
+        plain_string.name("plain string");
 
         // any kind of string
-        string         = clean_string
+        string         = plain_string
                        | single_q_str
                        | double_q_str;
         string.name("string");
@@ -168,15 +171,18 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>>
         key_oper_str_value =  string
                            >> oper_str
                            >> string;
+        key_oper_str_value.name("key_oper_str_value");
 
         key_oper_regex_value =  string
                              >> oper_regex
                              >> string
                              >> -ascii::char_('i');
+        key_oper_regex_value.name("key_oper_regex_value");
 
         // a tag
         tag            = key_oper_str_value[boost::bind(&OSMObjectFilter::check_tag_str, m_filter, _1)]
                        | key_oper_regex_value[boost::bind(&OSMObjectFilter::check_tag_regex, m_filter, _1)];
+        tag.name("tag");
 
         // attributes of type int
         attr_int       = ascii::string("@id")
@@ -192,7 +198,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>>
         attr_oper_int  = attr_int
                        > oper_int
                        > qi::long_;
-//        attr_oper_int.name("attribute name");
+        attr_oper_int.name("attr_oper_int");
 
         // name of OSM object type
         object_type    = ascii::string("node")
@@ -216,7 +222,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>>
                        | tag
                        | key
                        | attr;
-        attr.name("condition");
+        primitive.name("condition");
 
         // boolean logic expressions
         expression      = term

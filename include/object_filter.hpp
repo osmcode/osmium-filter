@@ -43,6 +43,8 @@ class OSMObjectFilter {
 
     bool m_verbose;
 
+public:
+
     void boolean_and();
     void boolean_or();
     void boolean_not();
@@ -53,8 +55,6 @@ class OSMObjectFilter {
     void check_attr_int(const std::tuple<std::string, std::string, int64_t>& value);
     void check_object_type(const std::string& type);
     void check_id(int64_t value);
-
-public:
 
     OSMObjectFilter(std::string& input, bool verbose);
 
