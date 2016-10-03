@@ -28,9 +28,7 @@ node
 
 node & highway
 
-node highway
-
-(way highway) | (node amenity)
+(way & highway) | (node & amenity)
 
 ! highway
 

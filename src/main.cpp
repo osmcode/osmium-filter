@@ -16,6 +16,7 @@
 #include <osmium/util/progress_bar.hpp>
 
 #include "object_filter.hpp"
+#include "compiled_filter.hpp"
 
 namespace po = boost::program_options;
 
@@ -105,6 +106,8 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    CompiledFilter cfilter{filter};
+
     osmium::io::Reader reader{input_filename};
 
     osmium::io::File output_file{output_filename, output_format};
@@ -114,7 +117,7 @@ int main(int argc, char* argv[]) {
     while (osmium::memory::Buffer buffer = reader.read()) {
         for (auto& object : buffer.select<osmium::OSMObject>()) {
             progress_bar.update(reader.offset());
-            if (filter.match(object)) {
+            if (cfilter.match(object)) {
                 writer(object);
             }
         }
