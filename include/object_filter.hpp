@@ -199,10 +199,10 @@ class CheckTagStrExpr : public ExprNode {
 
 public:
 
-    CheckTagStrExpr(const std::tuple<std::string, std::string, std::string>& args) :
-        m_key(std::get<0>(args)),
-        m_oper(std::get<1>(args)),
-        m_value(std::get<2>(args)) {
+    CheckTagStrExpr(const std::string& key, const std::string& oper, const std::string& value) :
+        m_key(key),
+        m_oper(oper),
+        m_value(value) {
     }
 
     expr_node_type expression_type() const noexcept override {
@@ -241,12 +241,12 @@ class CheckTagRegexExpr : public ExprNode {
 
 public:
 
-    CheckTagRegexExpr(const std::tuple<std::string, std::string, std::string, boost::optional<char>>& args) :
-        m_key(std::get<0>(args)),
-        m_oper(std::get<1>(args)),
-        m_value(std::get<2>(args)),
+    CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, boost::optional<char>& ci) :
+        m_key(key),
+        m_oper(oper),
+        m_value(value),
         m_value_regex(),
-        m_case_insensitive(std::get<3>(args) == 'i') {
+        m_case_insensitive(ci == 'i') {
         auto options = std::regex::nosubs | std::regex::optimize;
         if (m_case_insensitive) {
             options |= std::regex::icase;
@@ -292,10 +292,10 @@ class CheckAttrIntExpr : public ExprNode {
 
 public:
 
-    CheckAttrIntExpr(const std::tuple<std::string, std::string, int>& args) :
-        m_attr(std::get<0>(args)),
-        m_oper(std::get<1>(args)),
-        m_value(std::get<2>(args)) {
+    CheckAttrIntExpr(const std::string& attr, const std::string& oper, std::int64_t value) :
+        m_attr(attr),
+        m_oper(oper),
+        m_value(value) {
     }
 
     expr_node_type expression_type() const noexcept override {
@@ -320,16 +320,6 @@ public:
 
     std::int64_t value() const noexcept {
         return m_value;
-    }
-
-};
-
-class CheckIdExpr : public CheckAttrIntExpr {
-
-public:
-
-    CheckIdExpr(std::int64_t id) :
-        CheckAttrIntExpr(std::make_tuple("@id", "=", id)){
     }
 
 };

@@ -61,6 +61,48 @@ ExprNode* boolean_or(const boost::fusion::vector<std::vector<ExprNode*>>& e) {
     }
 }
 
+ExprNode* boolean_not(const boost::fusion::vector<ExprNode*>& e) {
+    auto expression = boost::fusion::at_c<0>(e);
+    return new NotExpr(expression);
+}
+
+ExprNode* check_has_key_expr(const boost::fusion::vector<std::string>& e) {
+    auto key = boost::fusion::at_c<0>(e);
+    return new CheckHasKeyExpr(key);
+}
+
+ExprNode* check_tag_str_expr(const boost::fusion::vector<std::tuple<std::string, std::string, std::string>>& e) {
+    auto key   = std::get<0>(boost::fusion::at_c<0>(e));
+    auto oper  = std::get<1>(boost::fusion::at_c<0>(e));
+    auto value = std::get<2>(boost::fusion::at_c<0>(e));
+    return new CheckTagStrExpr(key, oper, value);
+}
+
+ExprNode* check_tag_regex_expr(const boost::fusion::vector<std::tuple<std::string, std::string, std::string, boost::optional<char>>>& e) {
+    auto key   = std::get<0>(boost::fusion::at_c<0>(e));
+    auto oper  = std::get<1>(boost::fusion::at_c<0>(e));
+    auto value = std::get<2>(boost::fusion::at_c<0>(e));
+    auto cins  = std::get<3>(boost::fusion::at_c<0>(e));
+    return new CheckTagRegexExpr(key, oper, value, cins);
+}
+
+ExprNode* check_object_type_expr(const boost::fusion::vector<std::string>& e) {
+    auto type = boost::fusion::at_c<0>(e);
+    return new CheckObjectTypeExpr(type);
+}
+
+ExprNode* check_attr_int_expr(const boost::fusion::vector<std::tuple<std::string, std::string, int64_t>>& e) {
+    auto key   = std::get<0>(boost::fusion::at_c<0>(e));
+    auto oper  = std::get<1>(boost::fusion::at_c<0>(e));
+    auto value = std::get<2>(boost::fusion::at_c<0>(e));
+    return new CheckAttrIntExpr(key, oper, value);
+}
+
+ExprNode* check_id_expr(const boost::fusion::vector<int64_t>& e) {
+    auto value = boost::fusion::at_c<0>(e);
+    return new CheckAttrIntExpr("@id", "=", value);
+}
+
 template <typename Iterator>
 struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>, ExprNode*()> {
 
@@ -120,7 +162,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         oper_regex.name("string comparison operand");
 
         // a tag key
-        key            = string[qi::_val = boost::phoenix::new_<CheckHasKeyExpr>(qi::_1)];
+        key            = string[qi::_val = boost::phoenix::bind(&check_has_key_expr, _1)];
         key.name("tag key");
 
         // a tag (key operator value)
@@ -136,8 +178,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         key_oper_regex_value.name("key_oper_regex_value");
 
         // a tag
-        tag            = key_oper_str_value[qi::_val = boost::phoenix::new_<CheckTagStrExpr>(qi::_1)]
-                       | key_oper_regex_value[qi::_val = boost::phoenix::new_<CheckTagRegexExpr>(qi::_1)];
+        tag            = key_oper_str_value[qi::_val = boost::phoenix::bind(&check_tag_str_expr, _1)]
+                       | key_oper_regex_value[qi::_val = boost::phoenix::bind(&check_tag_regex_expr, _1)];
         tag.name("tag");
 
         // attributes of type int
@@ -169,13 +211,13 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         attr_type.name("attr_type");
 
         // attribute expression
-        attr           = attr_type[qi::_val = boost::phoenix::new_<CheckObjectTypeExpr>(qi::_1)]
-                       | attr_oper_int[qi::_val = boost::phoenix::new_<CheckAttrIntExpr>(qi::_1)];
+        attr           = attr_type[qi::_val = boost::phoenix::bind(&check_object_type_expr, _1)]
+                       | attr_oper_int[qi::_val = boost::phoenix::bind(&check_attr_int_expr, _1)];
         attr.name("attr");
 
         // primitive expression
-        primitive      = object_type[qi::_val = boost::phoenix::new_<CheckObjectTypeExpr>(qi::_1)]
-                       | qi::long_[qi::_val = boost::phoenix::new_<CheckIdExpr>(qi::_1)]
+        primitive      = object_type[qi::_val = boost::phoenix::bind(&check_object_type_expr, _1)]
+                       | qi::long_[qi::_val = boost::phoenix::bind(&check_id_expr, _1)]
                        | tag[qi::_val = qi::_1]
                        | key[qi::_val = qi::_1]
                        | attr[qi::_val = qi::_1];
@@ -193,7 +235,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                          > ')';
         paren_expression.name("parenthesized expression");
 
-        factor          = ('!' >> factor)[qi::_val = boost::phoenix::new_<NotExpr>(qi::_1)]
+        factor          = ('!' >> factor)[qi::_val = boost::phoenix::bind(&boolean_not, _1)]
                         | paren_expression[qi::_val = qi::_1]
                         | primitive[qi::_val = qi::_1];
         factor.name("factor");
