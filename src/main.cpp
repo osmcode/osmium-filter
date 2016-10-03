@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     OSMObjectFilter filter{filter_expression};
 
     if (verbose) {
-        filter.print_tree();
+        filter.print_tree(std::cerr);
 
         const auto e = filter.entities();
         std::cerr << "entities:";

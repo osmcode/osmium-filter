@@ -18,7 +18,7 @@
 void test(std::string expression) {
     std::cerr << "-- Testing: [" << expression << "]\n";
     OSMObjectFilter filter{expression};
-    filter.print_tree();
+    filter.print_tree(std::cerr);
     std::cerr << "\n";
 }
 

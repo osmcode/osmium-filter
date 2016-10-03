@@ -38,7 +38,7 @@ public:
 
     virtual expr_node_type expression_type() const noexcept = 0;
 
-    virtual void do_print(int level) const = 0;
+    virtual void do_print(std::ostream& out, int level) const = 0;
 
     virtual entity_bits_pair calc_entities() const noexcept = 0;
 
@@ -46,13 +46,13 @@ public:
         return calc_entities().first;
     }
 
-    void print(int level) const {
+    void print(std::ostream& out, int level) const {
         const int this_level = level;
         while (level > 0) {
-            std::cerr << ' ';
+            out << ' ';
             --level;
         }
-        do_print(this_level);
+        do_print(out, this_level);
     }
 
 }; // class ExprNode
@@ -87,10 +87,10 @@ public:
         return expr_node_type::and_expr;
     }
 
-    void do_print(int level) const override {
-        std::cerr << "AND\n";
-        for (const auto& e : m_children) {
-            e->print(level + 1);
+    void do_print(std::ostream& out, int level) const override {
+        out << "AND\n";
+        for (const auto* child : m_children) {
+            child->print(out, level + 1);
         }
     }
 
@@ -116,10 +116,10 @@ public:
         return expr_node_type::or_expr;
     }
 
-    void do_print(int level) const override {
-        std::cerr << "OR\n";
-        for (const auto& e : m_children) {
-            e->print(level + 1);
+    void do_print(std::ostream& out, int level) const override {
+        out << "OR\n";
+        for (const auto* child : m_children) {
+            child->print(out, level + 1);
         }
     }
 
@@ -151,9 +151,9 @@ public:
         return m_child;
     }
 
-    void do_print(int level) const override {
-        std::cerr << "NOT\n";
-        m_child->print(level + 1);
+    void do_print(std::ostream& out, int level) const override {
+        out << "NOT\n";
+        m_child->print(out, level + 1);
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -177,8 +177,8 @@ public:
         return expr_node_type::check_has_key;
     }
 
-    void do_print(int /*level*/) const override {
-        std::cerr << "HAS_KEY \"" << m_key << "\"\n";
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "HAS_KEY \"" << m_key << "\"\n";
     }
 
     const char* key() const noexcept {
@@ -209,8 +209,8 @@ public:
         return expr_node_type::check_tag_str;
     }
 
-    void do_print(int /*level*/) const override {
-        std::cerr << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
     }
 
     const char* key() const noexcept {
@@ -258,8 +258,8 @@ public:
         return expr_node_type::check_tag_regex;
     }
 
-    void do_print(int /*level*/) const override {
-        std::cerr << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -302,8 +302,8 @@ public:
         return expr_node_type::check_attr_int;
     }
 
-    void do_print(int /*level*/) const override {
-        std::cerr << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -352,8 +352,8 @@ public:
         return m_type;
     }
 
-    void do_print(int /*level*/) const override {
-        std::cerr << "HAS_TYPE " << osmium::item_type_to_name(m_type) << "\n";
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "HAS_TYPE " << osmium::item_type_to_name(m_type) << "\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -376,8 +376,8 @@ public:
         return m_root;
     }
 
-    void print_tree() const {
-        m_root->print(0);
+    void print_tree(std::ostream& out) const {
+        m_root->print(out, 0);
     }
 
     osmium::osm_entity_bits::type entities() const noexcept {
