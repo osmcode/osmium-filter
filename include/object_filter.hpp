@@ -2,14 +2,17 @@
 
 #include <cstdint>
 #include <iostream>
+#include <numeric>
 #include <regex>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include <boost/optional.hpp>
 
 #include <osmium/osm/item_type.hpp>
+#include <osmium/osm/entity_bits.hpp>
 
 namespace osmium {
     class OSMObject;
@@ -25,6 +28,8 @@ enum class expr_node_type : int {
     check_tag_regex,
     check_attr_int
 };
+
+using entity_bits_pair = std::pair<osmium::osm_entity_bits::type, osmium::osm_entity_bits::type>;
 
 class ExprNode {
 
@@ -49,6 +54,12 @@ public:
     virtual void print(int level) {
         prefix(level);
         std::cerr << "UNKNOWN NODE\n";
+    }
+
+    virtual entity_bits_pair calc_entities() const noexcept = 0;
+
+    osmium::osm_entity_bits::type entities() const noexcept {
+        return calc_entities().first;
     }
 
 }; // class ExprNode
@@ -91,6 +102,14 @@ public:
         }
     }
 
+    entity_bits_pair calc_entities() const noexcept override {
+        const auto bits = std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+        return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
+            const auto x = e->calc_entities();
+            return std::make_pair(b.first & x.first, b.second & x.second);
+        });
+    }
+
 };
 
 class OrExpr : public WithSubExpr {
@@ -111,6 +130,14 @@ public:
         for (const auto& e : m_children) {
             e->print(level + 1);
         }
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        const auto bits = std::make_pair(osmium::osm_entity_bits::nothing, osmium::osm_entity_bits::nothing);
+        return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
+            const auto x = e->calc_entities();
+            return std::make_pair(b.first | x.first, b.second | x.second);
+        });
     }
 
 };
@@ -139,6 +166,11 @@ public:
         m_child->print(level + 2);
     }
 
+    entity_bits_pair calc_entities() const noexcept override {
+        auto e = m_child->calc_entities();
+        return std::make_pair(e.second, e.first);
+    }
+
 };
 
 class CheckHasKeyExpr : public ExprNode {
@@ -162,6 +194,10 @@ public:
 
     const char* key() const noexcept {
         return m_key.c_str();
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
 };
@@ -201,6 +237,10 @@ public:
         return m_value.c_str();
     }
 
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
 };
 
 class CheckTagRegexExpr : public ExprNode {
@@ -233,6 +273,10 @@ public:
     void print(int level) override {
         prefix(level);
         std::cerr << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     const char* key() const noexcept {
@@ -274,6 +318,10 @@ public:
     void print(int level) override {
         prefix(level);
         std::cerr << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     const std::string& attr() const noexcept {
@@ -323,6 +371,11 @@ public:
         std::cerr << "HAS_TYPE " << osmium::item_type_to_name(m_type) << "\n";
     }
 
+    entity_bits_pair calc_entities() const noexcept override {
+        auto e = osmium::osm_entity_bits::from_item_type(m_type);
+        return std::make_pair(e, ~e);
+    }
+
 };
 
 
@@ -337,6 +390,10 @@ public:
 
     const ExprNode* root() const noexcept {
         return m_root;
+    }
+
+    osmium::osm_entity_bits::type entities() const noexcept {
+        return m_root->entities();
     }
 
 }; // class OSMObjectFilter

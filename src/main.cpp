@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
 
     CompiledFilter cfilter{filter};
 
-    osmium::io::Reader reader{input_filename};
+    osmium::io::Reader reader{input_filename, filter.entities()};
 
     osmium::io::File output_file{output_filename, output_format};
     osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
