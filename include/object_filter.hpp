@@ -367,11 +367,10 @@ public:
 class OSMObjectFilter {
 
     ExprNode* m_root = nullptr;
-    bool m_verbose;
 
 public:
 
-    OSMObjectFilter(std::string& input, bool verbose);
+    OSMObjectFilter(std::string& input);
 
     const ExprNode* root() const noexcept {
         return m_root;

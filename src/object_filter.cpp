@@ -211,9 +211,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
 }; // struct OSMObjectFilterGrammar
 
-OSMObjectFilter::OSMObjectFilter(std::string& input, bool verbose) :
-    m_verbose(verbose) {
-
+OSMObjectFilter::OSMObjectFilter(std::string& input) {
     comment_skipper<std::string::iterator> skip;
 
     OSMObjectFilterGrammar<std::string::iterator> grammar;
