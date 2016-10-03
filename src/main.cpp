@@ -101,6 +101,21 @@ int main(int argc, char* argv[]) {
 
     OSMObjectFilter filter{filter_expression, verbose};
 
+    filter.print_tree();
+
+    const auto e = filter->entities();
+    std::cerr << "entities:";
+    if (e & osmium::osm_entity_bits::node) {
+        std::cerr << " node";
+    }
+    if (e & osmium::osm_entity_bits::way) {
+        std::cerr << " way";
+    }
+    if (e & osmium::osm_entity_bits::relation) {
+        std::cerr << " relation";
+    }
+    std::cerr << "\n";
+
     // With --dry-run or -n we are done.
     if (!run) {
         return 0;

@@ -14,10 +14,6 @@
 #include <osmium/osm/item_type.hpp>
 #include <osmium/osm/entity_bits.hpp>
 
-namespace osmium {
-    class OSMObject;
-}
-
 enum class expr_node_type : int {
     and_expr,
     or_expr,
@@ -33,15 +29,6 @@ using entity_bits_pair = std::pair<osmium::osm_entity_bits::type, osmium::osm_en
 
 class ExprNode {
 
-protected:
-
-    void prefix(int level) {
-        while (level > 0) {
-            std::cerr << ' ';
-            --level;
-        }
-    }
-
 public:
 
     ExprNode() = default;
@@ -51,15 +38,21 @@ public:
 
     virtual expr_node_type expression_type() const noexcept = 0;
 
-    virtual void print(int level) {
-        prefix(level);
-        std::cerr << "UNKNOWN NODE\n";
-    }
+    virtual void do_print(int level) const = 0;
 
     virtual entity_bits_pair calc_entities() const noexcept = 0;
 
     osmium::osm_entity_bits::type entities() const noexcept {
         return calc_entities().first;
+    }
+
+    void print(int level) const {
+        const int this_level = level;
+        while (level > 0) {
+            std::cerr << ' ';
+            --level;
+        }
+        do_print(this_level);
     }
 
 }; // class ExprNode
@@ -94,8 +87,7 @@ public:
         return expr_node_type::and_expr;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int level) const override {
         std::cerr << "AND\n";
         for (const auto& e : m_children) {
             e->print(level + 1);
@@ -124,8 +116,7 @@ public:
         return expr_node_type::or_expr;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int level) const override {
         std::cerr << "OR\n";
         for (const auto& e : m_children) {
             e->print(level + 1);
@@ -160,10 +151,9 @@ public:
         return m_child;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int level) const override {
         std::cerr << "NOT\n";
-        m_child->print(level + 2);
+        m_child->print(level + 1);
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -187,8 +177,7 @@ public:
         return expr_node_type::check_has_key;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int /*level*/) const override {
         std::cerr << "HAS_KEY \"" << m_key << "\"\n";
     }
 
@@ -220,8 +209,7 @@ public:
         return expr_node_type::check_tag_str;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int /*level*/) const override {
         std::cerr << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
     }
 
@@ -270,8 +258,7 @@ public:
         return expr_node_type::check_tag_regex;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int /*level*/) const override {
         std::cerr << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
     }
 
@@ -315,8 +302,7 @@ public:
         return expr_node_type::check_attr_int;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int /*level*/) const override {
         std::cerr << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
     }
 
@@ -366,8 +352,7 @@ public:
         return m_type;
     }
 
-    void print(int level) override {
-        prefix(level);
+    void do_print(int /*level*/) const override {
         std::cerr << "HAS_TYPE " << osmium::item_type_to_name(m_type) << "\n";
     }
 
@@ -390,6 +375,10 @@ public:
 
     const ExprNode* root() const noexcept {
         return m_root;
+    }
+
+    void print_tree() const {
+        m_root->print(0);
     }
 
     osmium::osm_entity_bits::type entities() const noexcept {

@@ -211,22 +211,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
 }; // struct OSMObjectFilterGrammar
 
-void print_tree(ExprNode* node) {
-    node->print(0);
-    auto e = node->entities();
-    std::cerr << "entities:";
-    if (e & osmium::osm_entity_bits::node) {
-        std::cerr << " node";
-    }
-    if (e & osmium::osm_entity_bits::way) {
-        std::cerr << " way";
-    }
-    if (e & osmium::osm_entity_bits::relation) {
-        std::cerr << " relation";
-    }
-    std::cerr << "\n";
-}
-
 OSMObjectFilter::OSMObjectFilter(std::string& input, bool verbose) :
     m_verbose(verbose) {
 
@@ -249,7 +233,5 @@ OSMObjectFilter::OSMObjectFilter(std::string& input, bool verbose) :
     }
 
     assert(m_root);
-
-    print_tree(m_root);
 }
 
