@@ -35,6 +35,7 @@ int main(int argc, char* argv[]) {
         ("expression,e", po::value<std::string>(), "Filter expression")
         ("expression-file,E", po::value<std::string>(), "Filter expression file")
         ("dry-run,n", "Only parse expression, do not run it")
+        ("complete-ways,w", "Add nodes referenced in ways")
     ;
 
     po::options_description hidden;
@@ -58,6 +59,7 @@ int main(int argc, char* argv[]) {
     std::string filter_expression;
     bool verbose = false;
     bool run = true;
+    bool complete_ways = false;
 
     if (vm.count("help")) {
         print_help(desc);
@@ -70,6 +72,10 @@ int main(int argc, char* argv[]) {
 
     if (vm.count("dry-run")) {
         run = false;
+    }
+
+    if (vm.count("complete-ways")) {
+        complete_ways = true;
     }
 
     if (vm.count("input-filename")) {
@@ -125,24 +131,73 @@ int main(int argc, char* argv[]) {
 
     CompiledFilter cfilter{filter};
 
-    osmium::io::Reader reader{input_filename, filter.entities()};
+    if (complete_ways) {
+        std::vector<osmium::object_id_type> ids[3];
 
-    osmium::io::File output_file{output_filename, output_format};
-    osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
+        {
+            osmium::io::Reader reader{input_filename, filter.entities()};
+            while (osmium::memory::Buffer buffer = reader.read()) {
+                for (auto& object : buffer.select<osmium::OSMObject>()) {
+                    if (cfilter.match(object)) {
+                        int idx = int(object.type()) - 1;
+                        ids[idx].push_back(object.id());
+                        if (object.type() == osmium::item_type::way) {
+                            for (auto& nr : static_cast<osmium::Way&>(object).nodes()) {
+                                ids[0].push_back(nr.ref());
+                            }
+                        }
+                    }
+                }
+            }
+            reader.close();
+        }
 
-    osmium::ProgressBar progress_bar{reader.file_size(), true};
-    while (osmium::memory::Buffer buffer = reader.read()) {
-        for (auto& object : buffer.select<osmium::OSMObject>()) {
+        for (int i = 0; i < 3; ++i) {
+            sort(ids[i].begin(), ids[i].end());
+            auto last = std::unique(ids[i].begin(), ids[i].end());
+            ids[i].erase(last, ids[i].end());
+        }
+
+        osmium::io::Reader reader{input_filename};
+
+        osmium::io::File output_file{output_filename, output_format};
+        osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
+
+        osmium::ProgressBar progress_bar{reader.file_size(), true};
+        while (osmium::memory::Buffer buffer = reader.read()) {
             progress_bar.update(reader.offset());
-            if (cfilter.match(object)) {
-                writer(object);
+            for (auto& object : buffer.select<osmium::OSMObject>()) {
+                int idx = int(object.type()) - 1;
+                auto lb = std::lower_bound(ids[idx].begin(), ids[idx].end(), object.id());
+                if (lb != ids[idx].end() && *lb == object.id()) {
+                    writer(object);
+                }
             }
         }
-    }
-    progress_bar.done();
+        progress_bar.done();
 
-    reader.close();
-    writer.close();
+        reader.close();
+        writer.close();
+    } else {
+        osmium::io::Reader reader{input_filename, filter.entities()};
+
+        osmium::io::File output_file{output_filename, output_format};
+        osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
+
+        osmium::ProgressBar progress_bar{reader.file_size(), true};
+        while (osmium::memory::Buffer buffer = reader.read()) {
+            progress_bar.update(reader.offset());
+            for (auto& object : buffer.select<osmium::OSMObject>()) {
+                if (cfilter.match(object)) {
+                    writer(object);
+                }
+            }
+        }
+        progress_bar.done();
+
+        reader.close();
+        writer.close();
+    }
 
     return 0;
 }
