@@ -1,7 +1,9 @@
 
 # Osmium Filter
 
-Work-in-progress superfast filter for OSM data.
+Work-in-progress experimental superfast filter for OSM data.
+
+Do not use this for production work. The expression language (see below) will change!
 
 ## Dependencies
 
@@ -11,16 +13,17 @@ Work-in-progress superfast filter for OSM data.
 
 ## Building
 
-Get and build NativeJIT first.
+Get and build NativeJIT first. Installing NativeJIT with "make install" does
+not work currently.
 
-Then:
+Then in the osmium-filter directory:
 
     mkdir build
     cd build
     cmake ..
     make
 
-You'll probably have to set the include paths libs for NativeJIT on the `cmake`
+You'll have to set the include paths and libs for NativeJIT on the `cmake`
 command line or using `ccmake` for this to work.
 
 The `osmium-filter` binary is created in the `src` directory.
@@ -36,11 +39,16 @@ or
 
     osmium-filter INPUT-FILE -o OUTPUT-FILE -E FILTER-EXPRESSION-FILE
 
+Will filter out only the OSM objects matching the expressions. Call with `-w`
+to add all nodes referenced by any matching ways. (This will read the input
+twice.)
+
 Call with `--help` to get usage info.
 
 
-## Language
+## Expression Language
 
+No real documentation yet, but this will give you some ideas:
 
     A | B       A or B
 
