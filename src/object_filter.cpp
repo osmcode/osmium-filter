@@ -1,5 +1,6 @@
 
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -91,11 +92,21 @@ ExprNode* check_object_type_expr(const boost::fusion::vector<std::string>& e) {
     return new CheckObjectTypeExpr(type);
 }
 
-ExprNode* check_attr_int_expr(const boost::fusion::vector<std::tuple<std::string, std::string, int64_t>>& e) {
-    auto key   = std::get<0>(boost::fusion::at_c<0>(e));
-    auto oper  = std::get<1>(boost::fusion::at_c<0>(e));
-    auto value = std::get<2>(boost::fusion::at_c<0>(e));
-    return new CheckAttrIntExpr(key, oper, value);
+ExprNode* int_attr_expr(const boost::fusion::vector<std::string>& e) {
+    auto attr = boost::fusion::at_c<0>(e);
+    return new IntegerAttribute{attr};
+}
+
+ExprNode* binary_int_op_expr(const boost::fusion::vector<std::tuple<ExprNode*, integer_op_type, ExprNode*>>& e) {
+    auto e1 = std::get<0>(boost::fusion::at_c<0>(e));
+    auto op = std::get<1>(boost::fusion::at_c<0>(e));
+    auto e2 = std::get<2>(boost::fusion::at_c<0>(e));
+    return new BinaryIntOperation{e1, op, e2};
+}
+
+ExprNode* int_value_expr(const boost::fusion::vector<std::int64_t>& e) {
+    auto value = boost::fusion::at_c<0>(e);
+    return new IntegerValue{value};
 }
 
 ExprNode* check_id_expr(const boost::fusion::vector<int64_t>& e) {
@@ -109,11 +120,12 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     template <typename... T>
     using rs = qi::rule<Iterator, comment_skipper<Iterator>, T...>;
 
-    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term;
-    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_int, oper_str, oper_regex, attr_int, object_type, attr_type;
+    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int;
+    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str, oper_regex, object_type, attr_type;
+    rs<integer_op_type> oper_int;
     rs<std::tuple<std::string, std::string, std::string>()> key_oper_str_value;
     rs<std::tuple<std::string, std::string, std::string, boost::optional<char>>()> key_oper_regex_value;
-    rs<std::tuple<std::string, std::string, int64_t>()> attr_oper_int;
+    rs<std::tuple<ExprNode*, integer_op_type, ExprNode*>()> binary_int_oper;
 
     OSMObjectFilterGrammar() :
         OSMObjectFilterGrammar::base_type(expression, "OSM Object Filter Grammar") {
@@ -142,12 +154,12 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         string.name("string");
 
         // operator for integer comparison
-        oper_int       = ascii::string("=")
-                       | ascii::string(">=")
-                       | ascii::string("<=")
-                       | ascii::string("<")
-                       | ascii::string(">")
-                       | ascii::string("!=");
+        oper_int       = (qi::lit("=")  > qi::attr(integer_op_type::equal))
+                       | (qi::lit("!=") > qi::attr(integer_op_type::not_equal))
+                       | (qi::lit("<=") > qi::attr(integer_op_type::less_or_equal))
+                       | (qi::lit("<")  > qi::attr(integer_op_type::less_than))
+                       | (qi::lit(">=") > qi::attr(integer_op_type::greater_or_equal))
+                       | (qi::lit(">")  > qi::attr(integer_op_type::greater_than));
         oper_int.name("integer comparison operand");
 
         // operator for simple string comparison
@@ -183,20 +195,24 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         tag.name("tag");
 
         // attributes of type int
-        attr_int       = ascii::string("@id")
+        attr_int       = (ascii::string("@id")
                        | ascii::string("@version")
                        | ascii::string("@uid")
                        | ascii::string("@changeset")
                        | ascii::string("@nodes")
                        | ascii::string("@members")
-                       | ascii::string("@tags");
+                       | ascii::string("@tags"))[qi::_val = boost::phoenix::bind(&int_attr_expr, _1)];
         attr_int.name("attribute");
 
+        //int_value      = qi::long_[qi::_val = boost::phoenix::bind(&int_value_expr, _1)];
+        int_value      = qi::int_parser<std::int64_t>()[qi::_val = boost::phoenix::bind(&int_value_expr, _1)];
+        int_value.name("integer value");
+
         // an attribute name, comparison operator and integer
-        attr_oper_int  = attr_int
-                       > oper_int
-                       > qi::long_;
-        attr_oper_int.name("attr_oper_int");
+        binary_int_oper  = (attr_int | int_value)
+                         >> oper_int
+                         >> (attr_int | int_value);
+        binary_int_oper.name("binary_int_oper");
 
         // name of OSM object type
         object_type    = ascii::string("node")
@@ -212,12 +228,12 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         // attribute expression
         attr           = attr_type[qi::_val = boost::phoenix::bind(&check_object_type_expr, _1)]
-                       | attr_oper_int[qi::_val = boost::phoenix::bind(&check_attr_int_expr, _1)];
+                       | binary_int_oper[qi::_val = boost::phoenix::bind(&binary_int_op_expr, _1)];
         attr.name("attr");
 
         // primitive expression
         primitive      = object_type[qi::_val = boost::phoenix::bind(&check_object_type_expr, _1)]
-                       | qi::long_[qi::_val = boost::phoenix::bind(&check_id_expr, _1)]
+/*                       | qi::long_[qi::_val = boost::phoenix::bind(&check_id_expr, _1)]*/
                        | tag[qi::_val = qi::_1]
                        | key[qi::_val = qi::_1]
                        | attr[qi::_val = qi::_1];

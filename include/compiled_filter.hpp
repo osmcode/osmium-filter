@@ -21,18 +21,24 @@ class CompiledFilter {
     NativeJIT::Node<bool>& compile_and(const AndExpr* e);
     NativeJIT::Node<bool>& compile_or(const OrExpr* e);
     NativeJIT::Node<bool>& compile_not(const NotExpr* e);
+
+    NativeJIT::Node<std::int64_t>& compile_integer_attribute(const ExprNode* e);
+    NativeJIT::Node<bool>& compile_binary_int_op(const ExprNode* e);
+    NativeJIT::Node<std::int64_t>& compile_integer_value(const ExprNode* e);
+
     NativeJIT::Node<bool>& check_object_type(const CheckObjectTypeExpr* e);
     NativeJIT::Node<bool>& check_has_key(const CheckHasKeyExpr* e);
     NativeJIT::Node<bool>& check_tag_str(const CheckTagStrExpr* e);
     NativeJIT::Node<bool>& check_tag_regex(const CheckTagRegexExpr* e);
     NativeJIT::Node<bool>& check_attr_int(const CheckAttrIntExpr* e);
 
-    NativeJIT::Node<bool>& compile(const ExprNode* node);
+    NativeJIT::Node<bool>& compile_bool(const ExprNode* node);
+    NativeJIT::Node<std::int64_t>& compile_int(const ExprNode* node);
 
 public:
 
     CompiledFilter(const OSMObjectFilter& filter) {
-        m_function = m_expression.Compile(compile(filter.root()));
+        m_function = m_expression.Compile(compile_bool(filter.root()));
     }
 
     bool match(osmium::OSMObject& object) {

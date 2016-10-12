@@ -83,9 +83,9 @@ NativeJIT::Node<bool>& CompiledFilter::compile_and(const AndExpr* e) {
     ++f;
     const auto* e2 = *f;
     ++f;
-    auto and_expression = &m_expression.And(compile(e1), compile(e2));
+    auto and_expression = &m_expression.And(compile_bool(e1), compile_bool(e2));
     return *std::accumulate(f, l, and_expression, [this](NativeJIT::Node<bool>* and_expr, const ExprNode* expr) {
-        return &m_expression.And(*and_expr, compile(expr));
+        return &m_expression.And(*and_expr, compile_bool(expr));
     });
 }
 
@@ -97,17 +97,86 @@ NativeJIT::Node<bool>& CompiledFilter::compile_or(const OrExpr* e) {
     ++f;
     const auto* e2 = *f;
     ++f;
-    auto or_expression = &m_expression.Or(compile(e1), compile(e2));
+    auto or_expression = &m_expression.Or(compile_bool(e1), compile_bool(e2));
     return *std::accumulate(f, l, or_expression, [this](NativeJIT::Node<bool>* or_expr, const ExprNode* expr) {
-        return &m_expression.Or(*or_expr, compile(expr));
+        return &m_expression.Or(*or_expr, compile_bool(expr));
     });
 }
 
 NativeJIT::Node<bool>& CompiledFilter::compile_not(const NotExpr* e) {
-    return m_expression.If(compile(e->child()),
+    return m_expression.If(compile_bool(e->child()),
                            m_expression.Immediate(false),
                            m_expression.Immediate(true)
     );
+}
+
+typedef std::int64_t (*getter_func)(const osmium::OSMObject&);
+
+getter_func attr_to_func(attribute_type attr) {
+    switch (attr) {
+        case attribute_type::id:
+            return detail::get_id;
+        case attribute_type::version:
+            return detail::get_version;
+        case attribute_type::changeset:
+            return detail::get_changeset;
+        case attribute_type::uid:
+            return detail::get_uid;
+        default:
+            break;
+    }
+    assert(false);
+}
+
+
+NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_attribute(const ExprNode* e) {
+    auto* x = dynamic_cast<const IntegerAttribute*>(e);
+
+    auto& func = m_expression.Immediate(attr_to_func(x->attribute()));
+
+    return m_expression.Call(func, m_expression.GetP1());
+}
+
+NativeJIT::Node<bool>& CompiledFilter::compile_binary_int_op(const ExprNode* e) {
+    auto* x = dynamic_cast<const BinaryIntOperation*>(e);
+
+    auto& l = compile_int(x->lhs());
+    auto& r = compile_int(x->rhs());
+
+    switch (x->op()) {
+        case integer_op_type::equal: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(l, r);
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        case integer_op_type::not_equal: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JNE>(l, r);
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        case integer_op_type::less_than: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JL>(l, r);
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        case integer_op_type::less_or_equal: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JLE>(l, r);
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        case integer_op_type::greater_than: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JG>(l, r);
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        case integer_op_type::greater_or_equal: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JGE>(l, r);
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        default:
+            break;
+    }
+    assert(false);
+}
+
+NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_value(const ExprNode* e) {
+    auto* x = dynamic_cast<const IntegerValue*>(e);
+    return m_expression.Immediate(x->value());
 }
 
 NativeJIT::Node<bool>& CompiledFilter::check_object_type(const CheckObjectTypeExpr* e) {
@@ -191,7 +260,7 @@ NativeJIT::Node<bool>& CompiledFilter::check_attr_int(const CheckAttrIntExpr* e)
     }
 }
 
-NativeJIT::Node<bool>& CompiledFilter::compile(const ExprNode* node) {
+NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
     switch (node->expression_type()) {
         case expr_node_type::and_expr:
             return compile_and(static_cast<const AndExpr*>(node));
@@ -199,6 +268,8 @@ NativeJIT::Node<bool>& CompiledFilter::compile(const ExprNode* node) {
             return compile_or(static_cast<const OrExpr*>(node));
         case expr_node_type::not_expr:
             return compile_not(static_cast<const NotExpr*>(node));
+        case expr_node_type::binary_int_op:
+            return compile_binary_int_op(node);
         case expr_node_type::check_has_type:
             return check_object_type(static_cast<const CheckObjectTypeExpr*>(node));
         case expr_node_type::check_has_key:
@@ -207,10 +278,23 @@ NativeJIT::Node<bool>& CompiledFilter::compile(const ExprNode* node) {
             return check_tag_str(static_cast<const CheckTagStrExpr*>(node));
         case expr_node_type::check_tag_regex:
             return check_tag_regex(static_cast<const CheckTagRegexExpr*>(node));
-//        case expr_node_type::check_attr_int:
+        case expr_node_type::check_attr_int:
+            return check_attr_int(static_cast<const CheckAttrIntExpr*>(node));
         default:
             break;
     }
-    return check_attr_int(static_cast<const CheckAttrIntExpr*>(node));
+    assert(false);
+}
+
+NativeJIT::Node<std::int64_t>& CompiledFilter::compile_int(const ExprNode* node) {
+    switch (node->expression_type()) {
+        case expr_node_type::integer_attribute:
+            return compile_integer_attribute(node);
+        case expr_node_type::integer_value:
+            return compile_integer_value(node);
+        default:
+            break;
+    }
+    assert(false);
 }
 

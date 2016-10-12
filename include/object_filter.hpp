@@ -18,6 +18,12 @@ enum class expr_node_type : int {
     and_expr,
     or_expr,
     not_expr,
+    integer_attribute,
+    binary_int_op,
+    binary_string_op,
+    integer_value,
+    string_value,
+    regex_value,
     check_has_type,
     check_has_key,
     check_tag_str,
@@ -31,7 +37,7 @@ class ExprNode {
 
 public:
 
-    ExprNode() = default;
+    constexpr ExprNode() = default;
 
     virtual ~ExprNode() {
     }
@@ -73,7 +79,7 @@ public:
         return m_children;
     }
 
-};
+}; // class WithSubExpr
 
 class AndExpr : public WithSubExpr {
 
@@ -88,7 +94,7 @@ public:
     }
 
     void do_print(std::ostream& out, int level) const override {
-        out << "AND\n";
+        out << "BOOL_AND\n";
         for (const auto* child : m_children) {
             child->print(out, level + 1);
         }
@@ -102,7 +108,7 @@ public:
         });
     }
 
-};
+}; // class AndExpr
 
 class OrExpr : public WithSubExpr {
 
@@ -117,7 +123,7 @@ public:
     }
 
     void do_print(std::ostream& out, int level) const override {
-        out << "OR\n";
+        out << "BOOL_OR\n";
         for (const auto* child : m_children) {
             child->print(out, level + 1);
         }
@@ -131,7 +137,7 @@ public:
         });
     }
 
-};
+}; // class OrExpr
 
 class NotExpr : public ExprNode {
 
@@ -139,7 +145,7 @@ class NotExpr : public ExprNode {
 
 public:
 
-    NotExpr(ExprNode* e) :
+    constexpr NotExpr(ExprNode* e) :
         m_child(e) {
     }
 
@@ -152,7 +158,7 @@ public:
     }
 
     void do_print(std::ostream& out, int level) const override {
-        out << "NOT\n";
+        out << "BOOL_NOT\n";
         m_child->print(out, level + 1);
     }
 
@@ -162,6 +168,166 @@ public:
     }
 
 };
+
+enum class attribute_type {
+    id        = 0,
+    version   = 1,
+    visible   = 2,
+    changeset = 3,
+    uid       = 4,
+    user      = 5,
+    tags      = 6,
+    nodes     = 7,
+    members   = 8
+};
+
+class IntegerAttribute : public ExprNode {
+
+    attribute_type m_attribute;
+
+public:
+
+    IntegerAttribute(const std::string& attr) {
+        if (attr == "@id") {
+            m_attribute = attribute_type::id;
+        } else if (attr == "@version") {
+            m_attribute = attribute_type::version;
+        } else if (attr == "@changeset") {
+            m_attribute = attribute_type::changeset;
+        } else if (attr == "@uid") {
+            m_attribute = attribute_type::uid;
+        } else {
+            throw std::runtime_error("not an integer attribute");
+        }
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::integer_attribute;
+    }
+
+    const char* attribute_name() const noexcept {
+        static const char* names[] = {
+            "id",
+            "version",
+            "visible",
+            "changeset",
+            "uid",
+            "user",
+            "tags",
+            "nodes",
+            "members"
+        };
+
+        return names[int(m_attribute)];
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "INT_ATTR[" << attribute_name() << "]\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+    attribute_type attribute() const noexcept {
+        return m_attribute;
+    }
+
+}; // class IntegerAttribute
+
+enum class integer_op_type {
+    equal,
+    not_equal,
+    less_than,
+    less_or_equal,
+    greater_than,
+    greater_or_equal
+};
+
+class BinaryIntOperation : public ExprNode {
+
+    ExprNode* m_lhs;
+    ExprNode* m_rhs;
+    integer_op_type m_op;
+
+public:
+
+    constexpr BinaryIntOperation(ExprNode* lhs, integer_op_type op, ExprNode* rhs) noexcept :
+        m_lhs(lhs),
+        m_rhs(rhs),
+        m_op(op) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::binary_int_op;
+    }
+
+    const char* operator_name() const noexcept {
+        static const char* names[] = {
+            "equal",
+            "not_equal",
+            "less_than",
+            "less_or_equal",
+            "greater",
+            "greater_or_equal"
+        };
+
+        return names[int(m_op)];
+    }
+
+    void do_print(std::ostream& out, int level) const override {
+        out << "INT_BIN_OP[" << operator_name() << "]\n";
+        lhs()->print(out, level + 1);
+        rhs()->print(out, level + 1);
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        const auto l = m_lhs->calc_entities();
+        const auto r = m_rhs->calc_entities();
+        return std::make_pair(l.first & r.first, l.second & r.second);
+    }
+
+    integer_op_type op() const noexcept {
+        return m_op;
+    }
+
+    ExprNode* lhs() const noexcept {
+        return m_lhs;
+    }
+
+    ExprNode* rhs() const noexcept {
+        return m_rhs;
+    }
+
+}; // class BinaryIntOperation
+
+class IntegerValue : public ExprNode {
+
+    std::int64_t m_value;
+
+public:
+
+    constexpr IntegerValue(std::int64_t value) :
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::integer_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "INT_VALUE[" << m_value << "]\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+    std::int64_t value() const noexcept {
+        return m_value;
+    }
+
+}; // class IntegerValue
 
 class CheckHasKeyExpr : public ExprNode {
 
@@ -343,7 +509,7 @@ public:
     }
 
     void do_print(std::ostream& out, int /*level*/) const override {
-        out << "HAS_TYPE " << osmium::item_type_to_name(m_type) << "\n";
+        out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override {
