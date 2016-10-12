@@ -224,10 +224,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         primitive.name("condition");
 
         // boolean logic expressions
-        expression      = (term % '|')[qi::_val = boost::phoenix::bind(&boolean_or, _1)];
+        expression      = (term % qi::lit("or"))[qi::_val = boost::phoenix::bind(&boolean_or, _1)];
         expression.name("expression");
 
-        term            = (factor % '&')[qi::_val = boost::phoenix::bind(&boolean_and, _1)];
+        term            = (factor % qi::lit("and"))[qi::_val = boost::phoenix::bind(&boolean_and, _1)];
         term.name("term");
 
         paren_expression = '('
@@ -235,7 +235,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                          > ')';
         paren_expression.name("parenthesized expression");
 
-        factor          = ('!' >> factor)[qi::_val = boost::phoenix::bind(&boolean_not, _1)]
+        factor          = (qi::lit("not") >> factor)[qi::_val = boost::phoenix::bind(&boolean_not, _1)]
                         | paren_expression[qi::_val = qi::_1]
                         | primitive[qi::_val = qi::_1];
         factor.name("factor");

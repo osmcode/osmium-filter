@@ -26,13 +26,13 @@ highway = node
 node
 "node"
 
-node & highway
+node and highway
 
-(way & highway) | (node & amenity)
+(way and highway) or (node and amenity)
 
-! highway
+not highway
 
-way & !highway
+way and not highway
 
 highway ~ "_link$"
 

@@ -50,11 +50,9 @@ Call with `--help` to get usage info.
 
 No real documentation yet, but this will give you some ideas:
 
-    A | B       A or B
-
-    A & B       A and B
-
-    A B         Same as A & B
+    A or B
+    A and B
+    not A
 
     highway     Tag key exists
 
