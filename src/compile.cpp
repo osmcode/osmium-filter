@@ -31,6 +31,10 @@ namespace detail {
         return int64_t(object.changeset());
     }
 
+    const char* get_user(const osmium::OSMObject& object) noexcept {
+        return object.user();
+    }
+
     std::int64_t get_count_tags(const osmium::OSMObject& object) noexcept {
         return int64_t(object.tags().size());
     }
@@ -110,9 +114,10 @@ NativeJIT::Node<bool>& CompiledFilter::compile_not(const NotExpr* e) {
     );
 }
 
-typedef std::int64_t (*getter_func)(const osmium::OSMObject&);
+typedef std::int64_t (*getter_func_int)(const osmium::OSMObject&);
+typedef const char* (*getter_func_str)(const osmium::OSMObject&);
 
-getter_func attr_to_func(attribute_type attr) {
+getter_func_int attr_to_func_int(attribute_type attr) {
     switch (attr) {
         case attribute_type::id:
             return detail::get_id;
@@ -128,11 +133,28 @@ getter_func attr_to_func(attribute_type attr) {
     assert(false);
 }
 
+getter_func_str attr_to_func_str(attribute_type attr) {
+    switch (attr) {
+        case attribute_type::user:
+            return detail::get_user;
+        default:
+            break;
+    }
+    assert(false);
+}
 
 NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_attribute(const ExprNode* e) {
     auto* x = dynamic_cast<const IntegerAttribute*>(e);
 
-    auto& func = m_expression.Immediate(attr_to_func(x->attribute()));
+    auto& func = m_expression.Immediate(attr_to_func_int(x->attribute()));
+
+    return m_expression.Call(func, m_expression.GetP1());
+}
+
+NativeJIT::Node<const char*>& CompiledFilter::compile_string_attribute(const ExprNode* e) {
+    auto* x = dynamic_cast<const StringAttribute*>(e);
+
+    auto& func = m_expression.Immediate(attr_to_func_str(x->attribute()));
 
     return m_expression.Call(func, m_expression.GetP1());
 }
@@ -174,9 +196,38 @@ NativeJIT::Node<bool>& CompiledFilter::compile_binary_int_op(const ExprNode* e) 
     assert(false);
 }
 
+NativeJIT::Node<bool>& CompiledFilter::compile_binary_str_op(const ExprNode* e) {
+    auto* x = dynamic_cast<const BinaryStrOperation*>(e);
+
+    auto& l = compile_str(x->lhs());
+    auto& r = compile_str(x->rhs());
+
+    auto& func = m_expression.Immediate(std::strcmp);
+    auto& call = m_expression.Call(func, l, r);
+
+    switch (x->op()) {
+        case string_op_type::equal: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(0));
+            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        }
+        case string_op_type::not_equal: {
+            auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(0));
+            return m_expression.Conditional(compare, m_expression.Immediate(false), m_expression.Immediate(true));
+        }
+        default:
+            break;
+    }
+    assert(false);
+}
+
 NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_value(const ExprNode* e) {
     auto* x = dynamic_cast<const IntegerValue*>(e);
     return m_expression.Immediate(x->value());
+}
+
+NativeJIT::Node<const char*>& CompiledFilter::compile_string_value(const ExprNode* e) {
+    auto* x = dynamic_cast<const StringValue*>(e);
+    return m_expression.Immediate(x->value().c_str());
 }
 
 NativeJIT::Node<bool>& CompiledFilter::check_object_type(const CheckObjectTypeExpr* e) {
@@ -270,6 +321,8 @@ NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
             return compile_not(static_cast<const NotExpr*>(node));
         case expr_node_type::binary_int_op:
             return compile_binary_int_op(node);
+        case expr_node_type::binary_str_op:
+            return compile_binary_str_op(node);
         case expr_node_type::check_has_type:
             return check_object_type(static_cast<const CheckObjectTypeExpr*>(node));
         case expr_node_type::check_has_key:
@@ -292,6 +345,18 @@ NativeJIT::Node<std::int64_t>& CompiledFilter::compile_int(const ExprNode* node)
             return compile_integer_attribute(node);
         case expr_node_type::integer_value:
             return compile_integer_value(node);
+        default:
+            break;
+    }
+    assert(false);
+}
+
+NativeJIT::Node<const char*>& CompiledFilter::compile_str(const ExprNode* node) {
+    switch (node->expression_type()) {
+        case expr_node_type::string_attribute:
+            return compile_string_attribute(node);
+        case expr_node_type::string_value:
+            return compile_string_value(node);
         default:
             break;
     }

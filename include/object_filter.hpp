@@ -19,8 +19,9 @@ enum class expr_node_type : int {
     or_expr,
     not_expr,
     integer_attribute,
+    string_attribute,
     binary_int_op,
-    binary_string_op,
+    binary_str_op,
     integer_value,
     string_value,
     regex_value,
@@ -181,6 +182,22 @@ enum class attribute_type {
     members   = 8
 };
 
+inline const char* attribute_name(attribute_type attr) noexcept {
+    static const char* names[] = {
+        "id",
+        "version",
+        "visible",
+        "changeset",
+        "uid",
+        "user",
+        "tags",
+        "nodes",
+        "members"
+    };
+
+    return names[int(attr)];
+}
+
 class IntegerAttribute : public ExprNode {
 
     attribute_type m_attribute;
@@ -205,24 +222,8 @@ public:
         return expr_node_type::integer_attribute;
     }
 
-    const char* attribute_name() const noexcept {
-        static const char* names[] = {
-            "id",
-            "version",
-            "visible",
-            "changeset",
-            "uid",
-            "user",
-            "tags",
-            "nodes",
-            "members"
-        };
-
-        return names[int(m_attribute)];
-    }
-
     void do_print(std::ostream& out, int /*level*/) const override {
-        out << "INT_ATTR[" << attribute_name() << "]\n";
+        out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -234,6 +235,38 @@ public:
     }
 
 }; // class IntegerAttribute
+
+class StringAttribute : public ExprNode {
+
+    attribute_type m_attribute;
+
+public:
+
+    StringAttribute(const std::string& attr) {
+        if (attr == "@user") {
+            m_attribute = attribute_type::user;
+        } else {
+            throw std::runtime_error("not a string attribute");
+        }
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::string_attribute;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+    attribute_type attribute() const noexcept {
+        return m_attribute;
+    }
+
+}; // class StringAttribute
 
 enum class integer_op_type {
     equal,
@@ -301,6 +334,64 @@ public:
 
 }; // class BinaryIntOperation
 
+enum class string_op_type {
+    equal,
+    not_equal
+};
+
+class BinaryStrOperation : public ExprNode {
+
+    ExprNode* m_lhs;
+    ExprNode* m_rhs;
+    string_op_type m_op;
+
+public:
+
+    constexpr BinaryStrOperation(ExprNode* lhs, string_op_type op, ExprNode* rhs) noexcept :
+        m_lhs(lhs),
+        m_rhs(rhs),
+        m_op(op) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::binary_str_op;
+    }
+
+    const char* operator_name() const noexcept {
+        static const char* names[] = {
+            "equal",
+            "not_equal"
+        };
+
+        return names[int(m_op)];
+    }
+
+    void do_print(std::ostream& out, int level) const override {
+        out << "INT_STR_OP[" << operator_name() << "]\n";
+        lhs()->print(out, level + 1);
+        rhs()->print(out, level + 1);
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        const auto l = m_lhs->calc_entities();
+        const auto r = m_rhs->calc_entities();
+        return std::make_pair(l.first & r.first, l.second & r.second);
+    }
+
+    string_op_type op() const noexcept {
+        return m_op;
+    }
+
+    ExprNode* lhs() const noexcept {
+        return m_lhs;
+    }
+
+    ExprNode* rhs() const noexcept {
+        return m_rhs;
+    }
+
+}; // class BinaryStrOperation
+
 class IntegerValue : public ExprNode {
 
     std::int64_t m_value;
@@ -328,6 +419,69 @@ public:
     }
 
 }; // class IntegerValue
+
+class StringValue : public ExprNode {
+
+    std::string m_value;
+
+public:
+
+    StringValue(const std::string& value) :
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::string_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "STR_VALUE[" << m_value << "]\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+    const std::string& value() const noexcept {
+        return m_value;
+    }
+
+}; // class StringValue
+
+class RegexValue : public ExprNode {
+
+    std::string m_str;
+    std::regex m_value;
+
+public:
+
+    RegexValue(const std::regex& value) :
+        m_str("UNKNOWN"),
+        m_value(value) {
+    }
+
+    RegexValue(const std::string& value) :
+        m_str(value),
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::regex_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << "REGEX_VALUE[" << m_str << "]\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+    const std::regex& value() const noexcept {
+        return m_value;
+    }
+
+}; // class RegexValue
 
 class CheckHasKeyExpr : public ExprNode {
 
