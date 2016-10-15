@@ -97,6 +97,7 @@ public:
     void do_print(std::ostream& out, int level) const override {
         out << "BOOL_AND\n";
         for (const auto* child : m_children) {
+            assert(child);
             child->print(out, level + 1);
         }
     }
@@ -126,6 +127,7 @@ public:
     void do_print(std::ostream& out, int level) const override {
         out << "BOOL_OR\n";
         for (const auto* child : m_children) {
+            assert(child);
             child->print(out, level + 1);
         }
     }
@@ -133,6 +135,7 @@ public:
     entity_bits_pair calc_entities() const noexcept override {
         const auto bits = std::make_pair(osmium::osm_entity_bits::nothing, osmium::osm_entity_bits::nothing);
         return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
+            assert(e);
             const auto x = e->calc_entities();
             return std::make_pair(b.first | x.first, b.second | x.second);
         });
@@ -148,6 +151,7 @@ public:
 
     constexpr NotExpr(ExprNode* e) :
         m_child(e) {
+        assert(e);
     }
 
     expr_node_type expression_type() const noexcept override {
@@ -164,7 +168,7 @@ public:
     }
 
     entity_bits_pair calc_entities() const noexcept override {
-        auto e = m_child->calc_entities();
+        const auto e = m_child->calc_entities();
         return std::make_pair(e.second, e.first);
     }
 
@@ -255,7 +259,7 @@ public:
     }
 
     void do_print(std::ostream& out, int /*level*/) const override {
-        out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
+        out << "STR_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override {
@@ -289,6 +293,8 @@ public:
         m_lhs(lhs),
         m_rhs(rhs),
         m_op(op) {
+        assert(lhs);
+        assert(rhs);
     }
 
     expr_node_type expression_type() const noexcept override {
@@ -336,7 +342,9 @@ public:
 
 enum class string_op_type {
     equal,
-    not_equal
+    not_equal,
+    match,
+    not_match
 };
 
 class BinaryStrOperation : public ExprNode {
@@ -351,6 +359,8 @@ public:
         m_lhs(lhs),
         m_rhs(rhs),
         m_op(op) {
+        assert(lhs);
+        assert(rhs);
     }
 
     expr_node_type expression_type() const noexcept override {
@@ -360,14 +370,16 @@ public:
     const char* operator_name() const noexcept {
         static const char* names[] = {
             "equal",
-            "not_equal"
+            "not_equal",
+            "match",
+            "not_match"
         };
 
         return names[int(m_op)];
     }
 
     void do_print(std::ostream& out, int level) const override {
-        out << "INT_STR_OP[" << operator_name() << "]\n";
+        out << "BIN_STR_OP[" << operator_name() << "]\n";
         lhs()->print(out, level + 1);
         rhs()->print(out, level + 1);
     }
@@ -477,8 +489,8 @@ public:
         return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
-    const std::regex& value() const noexcept {
-        return m_value;
+    const std::regex* value() const noexcept {
+        return &m_value;
     }
 
 }; // class RegexValue

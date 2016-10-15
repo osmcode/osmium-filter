@@ -77,6 +77,10 @@ namespace detail {
         return tag_value && !std::regex_search(tag_value, *value);
     }
 
+    bool regex_match(const char* value, const std::regex* regex) {
+        return std::regex_search(value, *regex);
+    }
+
 } // namespace detail
 
 NativeJIT::Node<bool>& CompiledFilter::compile_and(const AndExpr* e) {
@@ -200,24 +204,41 @@ NativeJIT::Node<bool>& CompiledFilter::compile_binary_str_op(const ExprNode* e) 
     auto* x = dynamic_cast<const BinaryStrOperation*>(e);
 
     auto& l = compile_str(x->lhs());
-    auto& r = compile_str(x->rhs());
 
-    auto& func = m_expression.Immediate(std::strcmp);
-    auto& call = m_expression.Call(func, l, r);
+    if (x->rhs()->expression_type() == expr_node_type::string_value) {
+        auto& r = compile_str(x->rhs());
 
-    switch (x->op()) {
-        case string_op_type::equal: {
-            auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(0));
-            return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+        auto& func = m_expression.Immediate(std::strcmp);
+        auto& call = m_expression.Call(func, l, r);
+
+        switch (x->op()) {
+            case string_op_type::equal: {
+                auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(0));
+                return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
+            }
+            case string_op_type::not_equal: {
+                auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(0));
+                return m_expression.Conditional(compare, m_expression.Immediate(false), m_expression.Immediate(true));
+            }
+            default:
+                break;
         }
-        case string_op_type::not_equal: {
-            auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(0));
-            return m_expression.Conditional(compare, m_expression.Immediate(false), m_expression.Immediate(true));
+        assert(false);
+    } else {
+        auto& r = compile_regex(x->rhs());
+
+        auto& func = m_expression.Immediate(detail::regex_match);
+
+        auto& call = m_expression.Call(func, l, r);
+        if (x->op() == string_op_type::match) {
+            return call;
+        } else {
+            return m_expression.If(call,
+                           m_expression.Immediate(false),
+                           m_expression.Immediate(true)
+            );
         }
-        default:
-            break;
     }
-    assert(false);
 }
 
 NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_value(const ExprNode* e) {
@@ -228,6 +249,11 @@ NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_value(const ExprN
 NativeJIT::Node<const char*>& CompiledFilter::compile_string_value(const ExprNode* e) {
     auto* x = dynamic_cast<const StringValue*>(e);
     return m_expression.Immediate(x->value().c_str());
+}
+
+NativeJIT::Node<const std::regex*>& CompiledFilter::compile_regex_value(const ExprNode* e) {
+    auto* x = dynamic_cast<const RegexValue*>(e);
+    return m_expression.Immediate(x->value());
 }
 
 NativeJIT::Node<bool>& CompiledFilter::check_object_type(const CheckObjectTypeExpr* e) {
@@ -357,6 +383,16 @@ NativeJIT::Node<const char*>& CompiledFilter::compile_str(const ExprNode* node) 
             return compile_string_attribute(node);
         case expr_node_type::string_value:
             return compile_string_value(node);
+        default:
+            break;
+    }
+    assert(false);
+}
+
+NativeJIT::Node<const std::regex*>& CompiledFilter::compile_regex(const ExprNode* node) {
+    switch (node->expression_type()) {
+        case expr_node_type::regex_value:
+            return compile_regex_value(node);
         default:
             break;
     }

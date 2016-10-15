@@ -32,7 +32,7 @@ class CompiledFilter {
     NativeJIT::Node<const char*>& compile_string_attribute(const ExprNode* e);
     NativeJIT::Node<bool>& compile_binary_str_op(const ExprNode* e);
     NativeJIT::Node<const char*>& compile_string_value(const ExprNode* e);
-//    NativeJIT::Node<std::regex>& compile_regex_value(const ExprNode* e);
+    NativeJIT::Node<const std::regex*>& compile_regex_value(const ExprNode* e);
 
     NativeJIT::Node<bool>& check_object_type(const CheckObjectTypeExpr* e);
     NativeJIT::Node<bool>& check_has_key(const CheckHasKeyExpr* e);
@@ -43,6 +43,7 @@ class CompiledFilter {
     NativeJIT::Node<bool>& compile_bool(const ExprNode* node);
     NativeJIT::Node<std::int64_t>& compile_int(const ExprNode* node);
     NativeJIT::Node<const char*>& compile_str(const ExprNode* node);
+    NativeJIT::Node<const std::regex*>& compile_regex(const ExprNode* node);
 
 public:
 

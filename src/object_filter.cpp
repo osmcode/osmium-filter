@@ -109,10 +109,10 @@ ExprNode* binary_int_op_expr(const boost::fusion::vector<std::tuple<ExprNode*, i
     return new BinaryIntOperation{e1, op, e2};
 }
 
-ExprNode* binary_str_op_expr(const boost::fusion::vector<std::tuple<ExprNode*, string_op_type, ExprNode*>>& e) {
+ExprNode* binary_str_op_expr(const boost::fusion::vector<std::tuple<ExprNode*, std::tuple<string_op_type, ExprNode*>>>& e) {
     auto e1 = std::get<0>(boost::fusion::at_c<0>(e));
-    auto op = std::get<1>(boost::fusion::at_c<0>(e));
-    auto e2 = std::get<2>(boost::fusion::at_c<0>(e));
+    auto op = std::get<0>(std::get<1>(boost::fusion::at_c<0>(e)));
+    auto e2 = std::get<1>(std::get<1>(boost::fusion::at_c<0>(e)));
     return new BinaryStrOperation{e1, op, e2};
 }
 
@@ -126,6 +126,11 @@ ExprNode* str_value_expr(const boost::fusion::vector<std::string>& e) {
     return new StringValue{value};
 }
 
+ExprNode* regex_value_expr(const boost::fusion::vector<std::string>& e) {
+    auto value = boost::fusion::at_c<0>(e);
+    return new RegexValue{value};
+}
+
 ExprNode* check_id_expr(const boost::fusion::vector<int64_t>& e) {
     auto value = boost::fusion::at_c<0>(e);
     return new CheckAttrIntExpr("@id", "=", value);
@@ -137,14 +142,16 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     template <typename... T>
     using rs = qi::rule<Iterator, comment_skipper<Iterator>, T...>;
 
-    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, attr_str;
-    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex, object_type, attr_type;
+    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str;
+    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex_old, object_type, attr_type;
     rs<integer_op_type> oper_int;
     rs<string_op_type> oper_str;
+    rs<string_op_type> oper_regex;
     rs<std::tuple<std::string, std::string, std::string>()> key_oper_str_value;
     rs<std::tuple<std::string, std::string, std::string, boost::optional<char>>()> key_oper_regex_value;
     rs<std::tuple<ExprNode*, integer_op_type, ExprNode*>()> binary_int_oper;
-    rs<std::tuple<ExprNode*, string_op_type, ExprNode*>()> binary_str_oper;
+    rs<std::tuple<ExprNode*, std::tuple<string_op_type, ExprNode*>>()> binary_str_oper;
+    rs<std::tuple<string_op_type, ExprNode*>()> binary_str_oper_str, binary_str_oper_regex;
 
     OSMObjectFilterGrammar() :
         OSMObjectFilterGrammar::base_type(expression, "OSM Object Filter Grammar") {
@@ -192,10 +199,15 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         oper_str.name("string comparison operand");
 
         // operator for regex string comparison
-        oper_regex     = ascii::string("~")
+        oper_regex     = (qi::lit("~")  > qi::attr(string_op_type::match))
+                       | (qi::lit("!~") > qi::attr(string_op_type::not_match));
+        oper_regex.name("string regex comparison operand");
+
+        // operator for regex string comparison
+        oper_regex_old     = ascii::string("~")
                        | ascii::string("=~")
                        | ascii::string("!~");
-        oper_regex.name("string comparison operand");
+        oper_regex_old.name("string comparison operand");
 
         // a tag key
         key            = string[qi::_val = boost::phoenix::bind(&check_has_key_expr, _1)];
@@ -208,7 +220,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         key_oper_str_value.name("key_oper_str_value");
 
         key_oper_regex_value =  string
-                             >> oper_regex
+                             >> oper_regex_old
                              >> string
                              >> -ascii::char_('i');
         key_oper_regex_value.name("key_oper_regex_value");
@@ -238,15 +250,20 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         str_value      = string[qi::_val = boost::phoenix::bind(&str_value_expr, _1)];
         str_value.name("string value");
 
+        regex_value      = string[qi::_val = boost::phoenix::bind(&regex_value_expr, _1)];
+        regex_value.name("regex value");
+
         // an attribute name, comparison operator and integer
         binary_int_oper  = (attr_int | int_value)
                          >> oper_int
                          >> (attr_int | int_value);
         binary_int_oper.name("binary_int_oper");
 
-        binary_str_oper  = (attr_str | str_value)
-                         >> oper_str
-                         >> (attr_str | str_value);
+        binary_str_oper_str = oper_str > str_value;
+        binary_str_oper_regex = oper_regex > regex_value;
+
+        binary_str_oper  = attr_str >
+                           (binary_str_oper_str |binary_str_oper_regex);
         binary_str_oper.name("binary_str_oper");
 
         // name of OSM object type
