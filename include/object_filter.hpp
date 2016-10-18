@@ -50,7 +50,10 @@ public:
 
     virtual void do_print(std::ostream& out, int level) const = 0;
 
-    virtual entity_bits_pair calc_entities() const noexcept = 0;
+    virtual entity_bits_pair calc_entities() const noexcept {
+        return std::make_pair(osmium::osm_entity_bits::all,
+                              osmium::osm_entity_bits::all);
+    }
 
     osmium::osm_entity_bits::type entities() const noexcept {
         return calc_entities().first;
@@ -83,10 +86,6 @@ public:
 
     void do_print(std::ostream& out, int /*level*/) const override {
         out << (m_value ? "TRUE" : "FALSE") << "\n";
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
 }; // class BoolValue
@@ -297,10 +296,6 @@ public:
         out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
-    }
-
     attribute_type attribute() const noexcept {
         return m_attribute;
     }
@@ -327,10 +322,6 @@ public:
 
     void do_print(std::ostream& out, int /*level*/) const override {
         out << "STR_ATTR[" << attribute_name(m_attribute) << "]\n";
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     attribute_type attribute() const noexcept {
@@ -449,10 +440,6 @@ public:
         out << "INT_VALUE[" << m_value << "]\n";
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
-    }
-
     std::int64_t value() const noexcept {
         return m_value;
     }
@@ -475,10 +462,6 @@ public:
 
     void do_print(std::ostream& out, int /*level*/) const override {
         out << "STR_VALUE[" << m_value << "]\n";
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     const std::string& value() const noexcept {
@@ -510,10 +493,6 @@ public:
 
     void do_print(std::ostream& out, int /*level*/) const override {
         out << "REGEX_VALUE[" << m_str << "]\n";
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     const std::regex* value() const noexcept {
@@ -552,10 +531,6 @@ public:
         return m_value;
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
-    }
-
 }; // class StringComp
 
 
@@ -579,10 +554,6 @@ public:
         out << "TAGS_ATTR\n";
         m_key_expr->print(out, level + 1);
         m_val_expr->print(out, level + 1);
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     ExprNode* key_expr() const noexcept {
@@ -615,10 +586,6 @@ public:
 
     const char* key() const noexcept {
         return m_key.c_str();
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
 };
@@ -657,10 +624,6 @@ public:
         return m_value.c_str();
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
-    }
-
 };
 
 class CheckTagRegexExpr : public ExprNode {
@@ -692,10 +655,6 @@ public:
 
     void do_print(std::ostream& out, int /*level*/) const override {
         out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     const char* key() const noexcept {
@@ -736,10 +695,6 @@ public:
 
     void do_print(std::ostream& out, int /*level*/) const override {
         out << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
-    }
-
-    entity_bits_pair calc_entities() const noexcept override {
-        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
     }
 
     const std::string& attr() const noexcept {
