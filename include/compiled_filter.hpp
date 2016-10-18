@@ -40,7 +40,6 @@ class CompiledFilter {
     NativeJIT::Node<bool>& check_has_key(const CheckHasKeyExpr* e);
     NativeJIT::Node<bool>& check_tag_str(const CheckTagStrExpr* e);
     NativeJIT::Node<bool>& check_tag_regex(const CheckTagRegexExpr* e);
-    NativeJIT::Node<bool>& check_attr_int(const CheckAttrIntExpr* e);
 
     NativeJIT::Node<bool>& compile_bool(const ExprNode* node);
     NativeJIT::Node<std::int64_t>& compile_int(const ExprNode* node);

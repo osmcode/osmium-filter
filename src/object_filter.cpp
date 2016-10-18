@@ -143,11 +143,6 @@ ExprNode* regex_value_expr(const boost::fusion::vector<std::string>& e) {
     return new RegexValue{value};
 }
 
-ExprNode* check_id_expr(const boost::fusion::vector<int64_t>& e) {
-    auto value = boost::fusion::at_c<0>(e);
-    return new CheckAttrIntExpr("@id", "=", value);
-}
-
 template <typename Iterator>
 struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>, ExprNode*()> {
 
@@ -311,7 +306,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         // primitive expression
         primitive      = object_type[qi::_val = boost::phoenix::bind(&check_object_type_expr, _1)]
-/*                       | qi::long_[qi::_val = boost::phoenix::bind(&check_id_expr, _1)]*/
                        | tag[qi::_val = qi::_1]
                        | key[qi::_val = qi::_1]
                        | attr[qi::_val = qi::_1];

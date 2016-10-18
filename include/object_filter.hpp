@@ -33,8 +33,7 @@ enum class expr_node_type : int {
     check_has_type,
     check_has_key,
     check_tag_str,
-    check_tag_regex,
-    check_attr_int
+    check_tag_regex
 };
 
 using entity_bits_pair = std::pair<osmium::osm_entity_bits::type, osmium::osm_entity_bits::type>;
@@ -811,42 +810,6 @@ public:
 
     bool case_insensitive() const noexcept {
         return m_case_insensitive;
-    }
-
-};
-
-class CheckAttrIntExpr : public BoolExpression {
-
-    std::string m_attr;
-    std::string m_oper;
-    std::int64_t m_value;
-
-public:
-
-    CheckAttrIntExpr(const std::string& attr, const std::string& oper, std::int64_t value) :
-        m_attr(attr),
-        m_oper(oper),
-        m_value(value) {
-    }
-
-    expr_node_type expression_type() const noexcept override final {
-        return expr_node_type::check_attr_int;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
-    }
-
-    const std::string& attr() const noexcept {
-        return m_attr;
-    }
-
-    const std::string& oper() const noexcept {
-        return m_oper;
-    }
-
-    std::int64_t value() const noexcept {
-        return m_value;
     }
 
 };

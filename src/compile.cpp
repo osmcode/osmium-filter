@@ -318,45 +318,6 @@ NativeJIT::Node<bool>& CompiledFilter::check_tag_regex(const CheckTagRegexExpr* 
     );
 }
 
-NativeJIT::Node<bool>& CompiledFilter::check_attr_int(const CheckAttrIntExpr* e) {
-    auto& func = m_expression.Immediate(
-        e->attr() == "@id"        ? detail::get_id :
-        e->attr() == "@uid"       ? detail::get_uid :
-        e->attr() == "@changeset" ? detail::get_changeset :
-        e->attr() == "@version"   ? detail::get_version :
-        e->attr() == "@nodes"     ? detail::get_count_nodes :
-        e->attr() == "@members"   ? detail::get_count_members :
-        e->attr() == "@tags"      ? detail::get_count_tags :
-                                    0
-    );
-
-    auto& call = m_expression.Call(func, m_expression.GetP1());
-
-    auto oper = e->oper();
-    auto value = e->value();
-    if (oper == "=") {
-        auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(value));
-        return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-    } else if (oper == "!=") {
-        auto& compare = m_expression.Compare<NativeJIT::JccType::JNE>(call, m_expression.Immediate(value));
-        return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-    } else if (oper == ">") {
-        auto& compare = m_expression.Compare<NativeJIT::JccType::JG>(call, m_expression.Immediate(value));
-        return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-    } else if (oper == ">=") {
-        auto& compare = m_expression.Compare<NativeJIT::JccType::JGE>(call, m_expression.Immediate(value));
-        return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-    } else if (oper == "<") {
-        auto& compare = m_expression.Compare<NativeJIT::JccType::JL>(call, m_expression.Immediate(value));
-        return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-    } else if (oper == "<=") {
-        auto& compare = m_expression.Compare<NativeJIT::JccType::JLE>(call, m_expression.Immediate(value));
-        return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-    } else {
-        assert(false);
-    }
-}
-
 NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
     switch (node->expression_type()) {
         case expr_node_type::and_expr:
@@ -377,8 +338,6 @@ NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
             return check_tag_str(static_cast<const CheckTagStrExpr*>(node));
         case expr_node_type::check_tag_regex:
             return check_tag_regex(static_cast<const CheckTagRegexExpr*>(node));
-        case expr_node_type::check_attr_int:
-            return check_attr_int(static_cast<const CheckAttrIntExpr*>(node));
         case expr_node_type::tags_expr:
             return tags_expr(static_cast<const TagsExpr*>(node));
         default:
