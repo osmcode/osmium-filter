@@ -16,6 +16,82 @@
 #include <osmium/osm/entity_bits.hpp>
 #include <osmium/osm/object.hpp>
 
+enum class attribute_type {
+    type      = 0,
+    id        = 1,
+    version   = 2,
+    visible   = 3,
+    changeset = 4,
+    timestamp = 5,
+    uid       = 6,
+    user      = 7,
+    lat       = 8,
+    lon       = 9,
+    tags      = 10,
+    nodes     = 11,
+    members   = 12
+};
+
+inline const char* attribute_name(attribute_type attr) noexcept {
+    static const char* names[] = {
+        "id",
+        "version",
+        "visible",
+        "changeset",
+        "timestamp",
+        "uid",
+        "user",
+        "tags",
+        "lat",
+        "lon",
+        "nodes",
+        "members"
+    };
+
+    return names[int(attr)];
+}
+
+enum class integer_op_type {
+    equal,
+    not_equal,
+    less_than,
+    less_or_equal,
+    greater_than,
+    greater_or_equal
+};
+
+inline const char* operator_name(integer_op_type op) noexcept {
+    static const char* names[] = {
+        "equal",
+        "not_equal",
+        "less_than",
+        "less_or_equal",
+        "greater",
+        "greater_or_equal"
+    };
+
+    return names[int(op)];
+}
+
+enum class string_op_type {
+    equal,
+    not_equal,
+    match,
+    not_match
+};
+
+inline const char* operator_name(string_op_type op) noexcept {
+    static const char* names[] = {
+        "equal",
+        "not_equal",
+        "match",
+        "not_match"
+    };
+
+    return names[int(op)];
+}
+
+
 enum class expr_node_type : int {
     and_expr,
     or_expr,
@@ -36,7 +112,8 @@ enum class expr_node_type : int {
     check_tag_regex
 };
 
-using entity_bits_pair = std::pair<osmium::osm_entity_bits::type, osmium::osm_entity_bits::type>;
+using entity_bits_pair = std::pair<osmium::osm_entity_bits::type,
+                                   osmium::osm_entity_bits::type>;
 
 class ExprNode {
 
@@ -58,10 +135,6 @@ public:
                               osmium::osm_entity_bits::all);
     }
 
-    osmium::osm_entity_bits::type entities() const noexcept {
-        return calc_entities().first;
-    }
-
     void print(std::ostream& out, int level) const {
         const int this_level = level;
         while (level > 0) {
@@ -75,7 +148,7 @@ public:
         throw std::runtime_error{"Expected a bool expression"};
     }
 
-    virtual int64_t eval_int(const osmium::OSMObject& /*object*/) const {
+    virtual std::int64_t eval_int(const osmium::OSMObject& /*object*/) const {
         throw std::runtime_error{"Expected an integer expression"};
     }
 
@@ -89,7 +162,7 @@ class BoolExpression : public ExprNode {
 
 public:
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
+    std::int64_t eval_int(const osmium::OSMObject& object) const override final {
         return eval_bool(object) ? 1 : 0;
     }
 
@@ -114,7 +187,7 @@ public:
         return str && str[0] != '\0';
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
+    std::int64_t eval_int(const osmium::OSMObject& object) const override final {
         return std::atoll(eval_string(object));
     }
 
@@ -307,7 +380,7 @@ public:
         return m_value;
     }
 
-    int64_t eval_int(const osmium::OSMObject& /*object*/) const override final {
+    std::int64_t eval_int(const osmium::OSMObject& /*object*/) const noexcept override final {
         return m_value;
     }
 
@@ -337,7 +410,7 @@ public:
         return m_value;
     }
 
-    const char* eval_string(const osmium::OSMObject& /*object*/) const override final {
+    const char* eval_string(const osmium::OSMObject& /*object*/) const noexcept override final {
         return m_value.c_str();
     }
 
@@ -376,74 +449,6 @@ public:
 
 }; // class RegexValue
 
-enum class attribute_type {
-    id        = 0,
-    version   = 1,
-    visible   = 2,
-    changeset = 3,
-    uid       = 4,
-    user      = 5,
-    tags      = 6,
-    nodes     = 7,
-    members   = 8
-};
-
-inline const char* attribute_name(attribute_type attr) noexcept {
-    static const char* names[] = {
-        "id",
-        "version",
-        "visible",
-        "changeset",
-        "uid",
-        "user",
-        "tags",
-        "nodes",
-        "members"
-    };
-
-    return names[int(attr)];
-}
-
-enum class integer_op_type {
-    equal,
-    not_equal,
-    less_than,
-    less_or_equal,
-    greater_than,
-    greater_or_equal
-};
-
-inline const char* operator_name(integer_op_type op) noexcept {
-    static const char* names[] = {
-        "equal",
-        "not_equal",
-        "less_than",
-        "less_or_equal",
-        "greater",
-        "greater_or_equal"
-    };
-
-    return names[int(op)];
-}
-
-enum class string_op_type {
-    equal,
-    not_equal,
-    match,
-    not_match
-};
-
-inline const char* operator_name(string_op_type op) noexcept {
-    static const char* names[] = {
-        "equal",
-        "not_equal",
-        "match",
-        "not_match"
-    };
-
-    return names[int(op)];
-}
-
 class IntegerAttribute : public IntegerExpression {
 
     attribute_type m_attribute;
@@ -455,6 +460,10 @@ protected:
     }
 
 public:
+
+    IntegerAttribute(attribute_type attr) :
+        m_attribute(attr) {
+    }
 
     IntegerAttribute(const std::string& attr) {
         if (attr == "@id") {
@@ -478,7 +487,7 @@ public:
         return m_attribute;
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
+    std::int64_t eval_int(const osmium::OSMObject& object) const override final {
         switch (m_attribute) {
             case attribute_type::id:
                 return object.id();
@@ -525,6 +534,9 @@ public:
     }
 
     const char* eval_string(const osmium::OSMObject& object) const override final {
+        if (m_attribute != attribute_type::user) {
+            throw std::runtime_error{"not a string"};
+        }
         return object.user();
     }
 
@@ -577,8 +589,8 @@ public:
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
-        const int64_t lhs = m_lhs->eval_int(object);
-        const int64_t rhs = m_rhs->eval_int(object);
+        const std::int64_t lhs = m_lhs->eval_int(object);
+        const std::int64_t rhs = m_rhs->eval_int(object);
 
         switch (m_op) {
             case integer_op_type::equal:
@@ -702,7 +714,6 @@ public:
     }
 
 }; // class StringComp
-
 
 class TagsExpr : public BoolExpression {
 
@@ -886,12 +897,12 @@ public:
         return object.type() == m_type;
     }
 
-}; // class CheckObjecTypeExpr
+}; // class CheckObjectTypeExpr
 
 
 class OSMObjectFilter {
 
-    ExprNode* m_root = nullptr;
+    ExprNode* m_root = new BoolValue{true};
 
 public:
 
@@ -902,17 +913,14 @@ public:
     }
 
     void print_tree(std::ostream& out) const {
-        assert(m_root);
         m_root->print(out, 0);
     }
 
     osmium::osm_entity_bits::type entities() const noexcept {
-        assert(m_root);
-        return m_root->entities();
+        return m_root->calc_entities().first;
     }
 
     bool match(const osmium::OSMObject& object) const {
-        assert(m_root);
         return m_root->eval_bool(object);
     }
 
