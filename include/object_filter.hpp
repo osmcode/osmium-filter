@@ -140,7 +140,7 @@ public:
         return expr_node_type::bool_value;
     }
 
-    bool eval_bool(const osmium::OSMObject& /*object*/) const override final {
+    bool eval_bool(const osmium::OSMObject& /*object*/) const noexcept override final {
         return m_value;
     }
 
@@ -195,9 +195,11 @@ public:
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
-        return std::accumulate(children().begin(), children().end(), true, [&object](bool b, const ExprNode* e) {
-            return b & e->eval_bool(object);
+        const auto it = std::find_if(children().cbegin(), children().cend(), [&object](const ExprNode* e){
+            return !e->eval_bool(object);
         });
+
+        return it == children().cend();
     }
 
 }; // class AndExpr
@@ -234,9 +236,11 @@ public:
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
-        return std::accumulate(children().begin(), children().end(), false, [&object](bool b, const ExprNode* e) {
-            return b | e->eval_bool(object);
+        const auto it = std::find_if(children().cbegin(), children().cend(), [&object](const ExprNode* e){
+            return e->eval_bool(object);
         });
+
+        return it != children().cend();
     }
 
 }; // class OrExpr
