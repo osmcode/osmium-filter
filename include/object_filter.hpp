@@ -444,6 +444,41 @@ public:
 
 }; // class RegexValue
 
+class CheckObjectTypeExpr : public BoolExpression {
+
+    osmium::item_type m_type;
+
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
+    }
+
+public:
+
+    CheckObjectTypeExpr(osmium::item_type type) :
+        m_type(type) {
+    }
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::check_has_type;
+    }
+
+    osmium::item_type type() const noexcept {
+        return m_type;
+    }
+
+    entity_bits_pair calc_entities() const noexcept override final {
+        const auto e = osmium::osm_entity_bits::from_item_type(m_type);
+        return std::make_pair(e, ~e);
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        return object.type() == m_type;
+    }
+
+}; // class CheckObjectTypeExpr
+
 class IntegerAttribute : public IntegerExpression {
 
     integer_attribute_type m_attribute;
@@ -840,41 +875,6 @@ public:
     }
 
 };
-
-class CheckObjectTypeExpr : public BoolExpression {
-
-    osmium::item_type m_type;
-
-protected:
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
-    }
-
-public:
-
-    CheckObjectTypeExpr(const std::string& type) :
-        m_type(osmium::char_to_item_type(type[0])) {
-    }
-
-    expr_node_type expression_type() const noexcept override final {
-        return expr_node_type::check_has_type;
-    }
-
-    osmium::item_type type() const noexcept {
-        return m_type;
-    }
-
-    entity_bits_pair calc_entities() const noexcept override final {
-        auto e = osmium::osm_entity_bits::from_item_type(m_type);
-        return std::make_pair(e, ~e);
-    }
-
-    bool eval_bool(const osmium::OSMObject& object) const override final {
-        return object.type() == m_type;
-    }
-
-}; // class CheckObjectTypeExpr
 
 
 class OSMObjectFilter {

@@ -88,8 +88,9 @@ ExprNode* check_tag_regex_expr(const boost::fusion::vector<std::tuple<std::strin
 }
 
 ExprNode* check_object_type_expr(const boost::fusion::vector<std::string>& e) {
-    auto type = boost::fusion::at_c<0>(e);
-    return new CheckObjectTypeExpr(type);
+    const std::string& type = boost::fusion::at_c<0>(e);
+    assert(!type.empty());
+    return new CheckObjectTypeExpr(osmium::char_to_item_type(type[0]));
 }
 
 ExprNode* int_attr_expr(const boost::fusion::vector<std::string>& e) {
