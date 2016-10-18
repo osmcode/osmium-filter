@@ -71,20 +71,55 @@ public:
     }
 
     virtual bool eval_bool(const osmium::OSMObject& /*object*/) const {
-        throw std::runtime_error{"eval_bool"};
+        throw std::runtime_error{"Expected a bool expression"};
     }
 
     virtual int64_t eval_int(const osmium::OSMObject& /*object*/) const {
-        throw std::runtime_error{"eval_bool"};
+        throw std::runtime_error{"Expected an integer expression"};
     }
 
     virtual const char* eval_string(const osmium::OSMObject& /*object*/) const {
-        throw std::runtime_error{"eval_string"};
+        throw std::runtime_error{"Expected a string expression"};
     }
 
 }; // class ExprNode
 
-class BoolValue : public ExprNode {
+class BoolExpression : public ExprNode {
+
+public:
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
+    }
+
+}; // class BoolExpression
+
+class IntegerExpression : public ExprNode {
+
+public:
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return eval_int(object) > 0;
+    }
+
+}; // class IntegerExpression
+
+class StringExpression : public ExprNode {
+
+public:
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        const char* str = eval_string(object);
+        return str && str[0] != '\0';
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return std::atoll(eval_string(object));
+    }
+
+}; // class StringExpression
+
+class BoolValue : public BoolExpression {
 
     bool m_value;
 
@@ -106,13 +141,9 @@ public:
         return m_value;
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
-
 }; // class BoolValue
 
-class WithSubExpr : public ExprNode {
+class WithSubExpr : public BoolExpression {
 
 protected:
 
@@ -164,10 +195,6 @@ public:
         });
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
-
 }; // class AndExpr
 
 class OrExpr : public WithSubExpr {
@@ -205,13 +232,9 @@ public:
         });
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
-
 }; // class OrExpr
 
-class NotExpr : public ExprNode {
+class NotExpr : public BoolExpression {
 
     ExprNode* m_child;
 
@@ -244,13 +267,9 @@ public:
         return !m_child->eval_bool(object);
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
+}; // class NotExpr
 
-};
-
-class IntegerValue : public ExprNode {
+class IntegerValue : public IntegerExpression {
 
     std::int64_t m_value;
 
@@ -272,17 +291,13 @@ public:
         return m_value;
     }
 
-    bool eval_bool(const osmium::OSMObject& object) const override final {
-        return eval_int(object) > 0;
-    }
-
     int64_t eval_int(const osmium::OSMObject& /*object*/) const override final {
         return m_value;
     }
 
 }; // class IntegerValue
 
-class StringValue : public ExprNode {
+class StringValue : public StringExpression {
 
     std::string m_value;
 
@@ -409,7 +424,7 @@ inline const char* operator_name(string_op_type op) noexcept {
     return names[int(op)];
 }
 
-class IntegerAttribute : public ExprNode {
+class IntegerAttribute : public IntegerExpression {
 
     attribute_type m_attribute;
 
@@ -441,10 +456,6 @@ public:
         return m_attribute;
     }
 
-    bool eval_bool(const osmium::OSMObject& object) const override final {
-        return eval_int(object) > 0;
-    }
-
     int64_t eval_int(const osmium::OSMObject& object) const override final {
         switch (m_attribute) {
             case attribute_type::id:
@@ -463,7 +474,7 @@ public:
 
 }; // class IntegerAttribute
 
-class StringAttribute : public ExprNode {
+class StringAttribute : public StringExpression {
 
     attribute_type m_attribute;
 
@@ -495,7 +506,7 @@ public:
 
 }; // class StringAttribute
 
-class BinaryIntOperation : public ExprNode {
+class BinaryIntOperation : public BoolExpression {
 
     ExprNode* m_lhs;
     ExprNode* m_rhs;
@@ -563,13 +574,9 @@ public:
         throw std::runtime_error{"unknown op"};
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
-
 }; // class BinaryIntOperation
 
-class BinaryStrOperation : public ExprNode {
+class BinaryStrOperation : public BoolExpression {
 
     ExprNode* m_lhs;
     ExprNode* m_rhs;
@@ -632,10 +639,6 @@ public:
         throw std::runtime_error{"unknown op"};
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
-
 }; // class BinaryStrOperation
 
 class StringComp : public ExprNode {
@@ -671,7 +674,7 @@ public:
 }; // class StringComp
 
 
-class TagsExpr : public ExprNode {
+class TagsExpr : public BoolExpression {
 
     ExprNode* m_key_expr;
     ExprNode* m_val_expr;
@@ -703,7 +706,7 @@ public:
 
 }; // class TagsExpr
 
-class CheckHasKeyExpr : public ExprNode {
+class CheckHasKeyExpr : public BoolExpression {
 
     std::string m_key;
 
@@ -727,7 +730,7 @@ public:
 
 };
 
-class CheckTagStrExpr : public ExprNode {
+class CheckTagStrExpr : public BoolExpression {
 
     std::string m_key;
     std::string m_oper;
@@ -763,7 +766,7 @@ public:
 
 };
 
-class CheckTagRegexExpr : public ExprNode {
+class CheckTagRegexExpr : public BoolExpression {
 
     std::string m_key;
     std::string m_oper;
@@ -812,7 +815,7 @@ public:
 
 };
 
-class CheckAttrIntExpr : public ExprNode {
+class CheckAttrIntExpr : public BoolExpression {
 
     std::string m_attr;
     std::string m_oper;
@@ -848,7 +851,7 @@ public:
 
 };
 
-class CheckObjectTypeExpr : public ExprNode {
+class CheckObjectTypeExpr : public BoolExpression {
 
     osmium::item_type m_type;
 
@@ -879,11 +882,7 @@ public:
         return object.type() == m_type;
     }
 
-    int64_t eval_int(const osmium::OSMObject& object) const override final {
-        return eval_bool(object) ? 1 : 0;
-    }
-
-};
+}; // class CheckObjecTypeExpr
 
 
 class OSMObjectFilter {
