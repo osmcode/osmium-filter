@@ -106,6 +106,11 @@ int main(int argc, char* argv[]) {
 
     OSMObjectFilter filter{filter_expression};
 
+    if (filter.entities() == osmium::osm_entity_bits::nothing) {
+        std::cerr << "Filter expression can never match. Stopping.\n";
+        return 1;
+    }
+
     if (verbose) {
         filter.print_tree(std::cerr);
 
