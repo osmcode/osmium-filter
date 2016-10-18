@@ -102,6 +102,18 @@ ExprNode* str_attr_expr(const boost::fusion::vector<std::string>& e) {
     return new StringAttribute{attr};
 }
 
+ExprNode* string_comp_expr(const boost::fusion::vector<std::tuple<string_op_type, ExprNode*>>& e) {
+    auto op    = std::get<0>(boost::fusion::at_c<0>(e));
+    auto value = std::get<1>(boost::fusion::at_c<0>(e));
+    return new StringComp{op, value};
+}
+
+ExprNode* tags_attr_expr(const boost::fusion::vector<std::tuple<ExprNode*, ExprNode*>>& e) {
+    auto key_expr = std::get<0>(boost::fusion::at_c<0>(e));
+    auto val_expr = std::get<1>(boost::fusion::at_c<0>(e));
+    return new TagsExpr{key_expr, val_expr};
+}
+
 ExprNode* binary_int_op_expr(const boost::fusion::vector<std::tuple<ExprNode*, integer_op_type, ExprNode*>>& e) {
     auto e1 = std::get<0>(boost::fusion::at_c<0>(e));
     auto op = std::get<1>(boost::fusion::at_c<0>(e));
@@ -142,7 +154,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     template <typename... T>
     using rs = qi::rule<Iterator, comment_skipper<Iterator>, T...>;
 
-    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str;
+    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str, string_comp;
     rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex_old, object_type, attr_type;
     rs<integer_op_type> oper_int;
     rs<string_op_type> oper_str;
@@ -152,6 +164,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<std::tuple<ExprNode*, integer_op_type, ExprNode*>()> binary_int_oper;
     rs<std::tuple<ExprNode*, std::tuple<string_op_type, ExprNode*>>()> binary_str_oper;
     rs<std::tuple<string_op_type, ExprNode*>()> binary_str_oper_str, binary_str_oper_regex;
+    rs<std::tuple<ExprNode*, ExprNode*>()> attr_tags_cond, attr_tags;
 
     OSMObjectFilterGrammar() :
         OSMObjectFilterGrammar::base_type(expression, "OSM Object Filter Grammar") {
@@ -235,13 +248,24 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | ascii::string("@version")
                        | ascii::string("@uid")
                        | ascii::string("@changeset")
-                       | ascii::string("@nodes")
+               /*        | ascii::string("@nodes")
                        | ascii::string("@members")
-                       | ascii::string("@tags"))[qi::_val = boost::phoenix::bind(&int_attr_expr, _1)];
+                       | ascii::string("@tags")*/)[qi::_val = boost::phoenix::bind(&int_attr_expr, _1)];
         attr_int.name("int attribute");
 
         attr_str       = ascii::string("@user")[qi::_val = boost::phoenix::bind(&str_attr_expr, _1)];
         attr_int.name("string attribute");
+
+        //XXX string_comp    = (binary_str_oper_str | binary_str_oper_regex)[qi::_val = boost::phoenix::bind(&string_comp_expr, _1)];
+        string_comp    = binary_str_oper_str[qi::_val = boost::phoenix::bind(&string_comp_expr, _1)];
+
+        attr_tags_cond = string_comp >> string_comp;
+        attr_tags_cond.name("tags condition");
+
+        attr_tags      = qi::lit("@tags") >>
+                         (qi::lit('[') > attr_tags_cond > qi::lit(']'))
+                         ;
+        attr_tags.name("tags attribute");
 
         //int_value      = qi::long_[qi::_val = boost::phoenix::bind(&int_value_expr, _1)];
         int_value      = qi::int_parser<std::int64_t>()[qi::_val = boost::phoenix::bind(&int_value_expr, _1)];
@@ -281,7 +305,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         // attribute expression
         attr           = attr_type[qi::_val = boost::phoenix::bind(&check_object_type_expr, _1)]
                        | binary_int_oper[qi::_val = boost::phoenix::bind(&binary_int_op_expr, _1)]
-                       | binary_str_oper[qi::_val = boost::phoenix::bind(&binary_str_op_expr, _1)];
+                       | binary_str_oper[qi::_val = boost::phoenix::bind(&binary_str_op_expr, _1)]
+                       | attr_tags[qi::_val = boost::phoenix::bind(&tags_attr_expr, _1)];
         attr.name("attr");
 
         // primitive expression

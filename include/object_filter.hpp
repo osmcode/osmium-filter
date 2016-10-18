@@ -18,13 +18,16 @@ enum class expr_node_type : int {
     and_expr,
     or_expr,
     not_expr,
+    bool_value,
+    integer_value,
+    string_value,
+    regex_value,
     integer_attribute,
     string_attribute,
     binary_int_op,
     binary_str_op,
-    integer_value,
-    string_value,
-    regex_value,
+    string_comp,
+    tags_expr,
     check_has_type,
     check_has_key,
     check_tag_str,
@@ -63,6 +66,30 @@ public:
     }
 
 }; // class ExprNode
+
+class BoolValue : public ExprNode {
+
+    bool m_value;
+
+public:
+
+    constexpr BoolValue(bool value = true) :
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::bool_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override {
+        out << (m_value ? "TRUE" : "FALSE") << "\n";
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+}; // class BoolValue
 
 class WithSubExpr : public ExprNode {
 
@@ -202,6 +229,46 @@ inline const char* attribute_name(attribute_type attr) noexcept {
     return names[int(attr)];
 }
 
+enum class integer_op_type {
+    equal,
+    not_equal,
+    less_than,
+    less_or_equal,
+    greater_than,
+    greater_or_equal
+};
+
+inline const char* operator_name(integer_op_type op) noexcept {
+    static const char* names[] = {
+        "equal",
+        "not_equal",
+        "less_than",
+        "less_or_equal",
+        "greater",
+        "greater_or_equal"
+    };
+
+    return names[int(op)];
+}
+
+enum class string_op_type {
+    equal,
+    not_equal,
+    match,
+    not_match
+};
+
+inline const char* operator_name(string_op_type op) noexcept {
+    static const char* names[] = {
+        "equal",
+        "not_equal",
+        "match",
+        "not_match"
+    };
+
+    return names[int(op)];
+}
+
 class IntegerAttribute : public ExprNode {
 
     attribute_type m_attribute;
@@ -272,15 +339,6 @@ public:
 
 }; // class StringAttribute
 
-enum class integer_op_type {
-    equal,
-    not_equal,
-    less_than,
-    less_or_equal,
-    greater_than,
-    greater_or_equal
-};
-
 class BinaryIntOperation : public ExprNode {
 
     ExprNode* m_lhs;
@@ -301,21 +359,8 @@ public:
         return expr_node_type::binary_int_op;
     }
 
-    const char* operator_name() const noexcept {
-        static const char* names[] = {
-            "equal",
-            "not_equal",
-            "less_than",
-            "less_or_equal",
-            "greater",
-            "greater_or_equal"
-        };
-
-        return names[int(m_op)];
-    }
-
     void do_print(std::ostream& out, int level) const override {
-        out << "INT_BIN_OP[" << operator_name() << "]\n";
+        out << "INT_BIN_OP[" << operator_name(m_op) << "]\n";
         lhs()->print(out, level + 1);
         rhs()->print(out, level + 1);
     }
@@ -340,13 +385,6 @@ public:
 
 }; // class BinaryIntOperation
 
-enum class string_op_type {
-    equal,
-    not_equal,
-    match,
-    not_match
-};
-
 class BinaryStrOperation : public ExprNode {
 
     ExprNode* m_lhs;
@@ -367,19 +405,8 @@ public:
         return expr_node_type::binary_str_op;
     }
 
-    const char* operator_name() const noexcept {
-        static const char* names[] = {
-            "equal",
-            "not_equal",
-            "match",
-            "not_match"
-        };
-
-        return names[int(m_op)];
-    }
-
     void do_print(std::ostream& out, int level) const override {
-        out << "BIN_STR_OP[" << operator_name() << "]\n";
+        out << "BIN_STR_OP[" << operator_name(m_op) << "]\n";
         lhs()->print(out, level + 1);
         rhs()->print(out, level + 1);
     }
@@ -494,6 +521,79 @@ public:
     }
 
 }; // class RegexValue
+
+class StringComp : public ExprNode {
+
+    string_op_type m_op;
+    ExprNode*      m_value;
+
+public:
+
+    StringComp(string_op_type op, ExprNode* value) :
+        m_op(op),
+        m_value(value) {
+        assert(value);
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::string_comp;
+    }
+
+    void do_print(std::ostream& out, int level) const override {
+        out << "STRING_COMP[" << operator_name(m_op) << "]\n";
+        m_value->print(out, level + 1);
+    }
+
+    string_op_type op() const noexcept {
+        return m_op;
+    }
+
+    ExprNode* value() const noexcept {
+        return m_value;
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+}; // class StringComp
+
+
+class TagsExpr : public ExprNode {
+
+    ExprNode* m_key_expr;
+    ExprNode* m_val_expr;
+
+public:
+
+    TagsExpr(ExprNode* key_expr, ExprNode* val_expr) :
+        m_key_expr(key_expr ? key_expr : new BoolValue(true)),
+        m_val_expr(val_expr ? val_expr : new BoolValue(true)) {
+    }
+
+    expr_node_type expression_type() const noexcept override {
+        return expr_node_type::tags_expr;
+    }
+
+    void do_print(std::ostream& out, int level) const override {
+        out << "TAGS_ATTR\n";
+        m_key_expr->print(out, level + 1);
+        m_val_expr->print(out, level + 1);
+    }
+
+    entity_bits_pair calc_entities() const noexcept override {
+        return std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+    }
+
+    ExprNode* key_expr() const noexcept {
+        return m_key_expr;
+    }
+
+    ExprNode* val_expr() const noexcept {
+        return m_val_expr;
+    }
+
+}; // class TagsExpr
 
 class CheckHasKeyExpr : public ExprNode {
 
