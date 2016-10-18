@@ -10,9 +10,11 @@
 #include <vector>
 
 #include <boost/optional.hpp>
+#include <boost/variant.hpp>
 
 #include <osmium/osm/item_type.hpp>
 #include <osmium/osm/entity_bits.hpp>
+#include <osmium/osm/object.hpp>
 
 enum class expr_node_type : int {
     and_expr,
@@ -68,6 +70,18 @@ public:
         do_print(out, this_level);
     }
 
+    virtual bool eval_bool(const osmium::OSMObject& /*object*/) const {
+        throw std::runtime_error{"eval_bool"};
+    }
+
+    virtual int64_t eval_int(const osmium::OSMObject& /*object*/) const {
+        throw std::runtime_error{"eval_bool"};
+    }
+
+    virtual const char* eval_string(const osmium::OSMObject& /*object*/) const {
+        throw std::runtime_error{"eval_string"};
+    }
+
 }; // class ExprNode
 
 class BoolValue : public ExprNode {
@@ -80,12 +94,20 @@ public:
         m_value(value) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::bool_value;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << (m_value ? "TRUE" : "FALSE") << "\n";
+    }
+
+    bool eval_bool(const osmium::OSMObject& /*object*/) const override final {
+        return m_value;
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
     }
 
 }; // class BoolValue
@@ -116,11 +138,11 @@ public:
         WithSubExpr(children) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::and_expr;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_AND\n";
         for (const auto* child : m_children) {
             assert(child);
@@ -128,12 +150,22 @@ public:
         }
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
+    entity_bits_pair calc_entities() const noexcept override final {
         const auto bits = std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
         return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
             const auto x = e->calc_entities();
             return std::make_pair(b.first & x.first, b.second & x.second);
         });
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return std::accumulate(children().begin(), children().end(), true, [&object](bool b, const ExprNode* e) {
+            return b & e->eval_bool(object);
+        });
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
     }
 
 }; // class AndExpr
@@ -146,11 +178,11 @@ public:
         WithSubExpr(children) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::or_expr;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_OR\n";
         for (const auto* child : m_children) {
             assert(child);
@@ -158,13 +190,23 @@ public:
         }
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
+    entity_bits_pair calc_entities() const noexcept override final {
         const auto bits = std::make_pair(osmium::osm_entity_bits::nothing, osmium::osm_entity_bits::nothing);
         return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
             assert(e);
             const auto x = e->calc_entities();
             return std::make_pair(b.first | x.first, b.second | x.second);
         });
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return std::accumulate(children().begin(), children().end(), false, [&object](bool b, const ExprNode* e) {
+            return b | e->eval_bool(object);
+        });
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
     }
 
 }; // class OrExpr
@@ -180,7 +222,7 @@ public:
         assert(e);
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::not_expr;
     }
 
@@ -188,17 +230,116 @@ public:
         return m_child;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_NOT\n";
         m_child->print(out, level + 1);
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
+    entity_bits_pair calc_entities() const noexcept override final {
         const auto e = m_child->calc_entities();
         return std::make_pair(e.second, e.first);
     }
 
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return !m_child->eval_bool(object);
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
+    }
+
 };
+
+class IntegerValue : public ExprNode {
+
+    std::int64_t m_value;
+
+public:
+
+    constexpr IntegerValue(std::int64_t value) :
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::integer_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "INT_VALUE[" << m_value << "]\n";
+    }
+
+    std::int64_t value() const noexcept {
+        return m_value;
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return eval_int(object) > 0;
+    }
+
+    int64_t eval_int(const osmium::OSMObject& /*object*/) const override final {
+        return m_value;
+    }
+
+}; // class IntegerValue
+
+class StringValue : public ExprNode {
+
+    std::string m_value;
+
+public:
+
+    StringValue(const std::string& value) :
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::string_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "STR_VALUE[" << m_value << "]\n";
+    }
+
+    const std::string& value() const noexcept {
+        return m_value;
+    }
+
+    const char* eval_string(const osmium::OSMObject& /*object*/) const override final {
+        return m_value.c_str();
+    }
+
+}; // class StringValue
+
+class RegexValue : public ExprNode {
+
+    std::string m_str;
+    std::regex m_value;
+
+public:
+
+    RegexValue(const std::regex& value) :
+        m_str("UNKNOWN"),
+        m_value(value) {
+    }
+
+    RegexValue(const std::string& value) :
+        m_str(value),
+        m_value(value) {
+    }
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::regex_value;
+    }
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "REGEX_VALUE[" << m_str << "]\n";
+    }
+
+    const std::regex* value() const noexcept {
+        return &m_value;
+    }
+
+}; // class RegexValue
 
 enum class attribute_type {
     id        = 0,
@@ -284,20 +425,40 @@ public:
         } else if (attr == "@uid") {
             m_attribute = attribute_type::uid;
         } else {
-            throw std::runtime_error("not an integer attribute");
+            throw std::runtime_error{"not an integer attribute"};
         }
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::integer_attribute;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
     attribute_type attribute() const noexcept {
         return m_attribute;
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return eval_int(object) > 0;
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        switch (m_attribute) {
+            case attribute_type::id:
+                return object.id();
+            case attribute_type::version:
+                return object.version();
+            case attribute_type::changeset:
+                return object.changeset();
+            case attribute_type::uid:
+                return object.uid();
+            default:
+                break;
+        }
+        throw std::runtime_error{"not an int"};
     }
 
 }; // class IntegerAttribute
@@ -312,20 +473,24 @@ public:
         if (attr == "@user") {
             m_attribute = attribute_type::user;
         } else {
-            throw std::runtime_error("not a string attribute");
+            throw std::runtime_error{"not a string attribute"};
         }
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::string_attribute;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "STR_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
     attribute_type attribute() const noexcept {
         return m_attribute;
+    }
+
+    const char* eval_string(const osmium::OSMObject& object) const override final {
+        return object.user();
     }
 
 }; // class StringAttribute
@@ -346,17 +511,17 @@ public:
         assert(rhs);
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::binary_int_op;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "INT_BIN_OP[" << operator_name(m_op) << "]\n";
         lhs()->print(out, level + 1);
         rhs()->print(out, level + 1);
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
+    entity_bits_pair calc_entities() const noexcept override final {
         const auto l = m_lhs->calc_entities();
         const auto r = m_rhs->calc_entities();
         return std::make_pair(l.first & r.first, l.second & r.second);
@@ -372,6 +537,34 @@ public:
 
     ExprNode* rhs() const noexcept {
         return m_rhs;
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        const int64_t lhs = m_lhs->eval_int(object);
+        const int64_t rhs = m_rhs->eval_int(object);
+
+        switch (m_op) {
+            case integer_op_type::equal:
+                return lhs == rhs;
+            case integer_op_type::not_equal:
+                return lhs != rhs;
+            case integer_op_type::less_than:
+                return lhs < rhs;
+            case integer_op_type::less_or_equal:
+                return lhs <= rhs;
+            case integer_op_type::greater_than:
+                return lhs > rhs;
+            case integer_op_type::greater_or_equal:
+                return lhs >= rhs;
+            default:
+                break;
+        }
+
+        throw std::runtime_error{"unknown op"};
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
     }
 
 }; // class BinaryIntOperation
@@ -392,17 +585,17 @@ public:
         assert(rhs);
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::binary_str_op;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "BIN_STR_OP[" << operator_name(m_op) << "]\n";
         lhs()->print(out, level + 1);
         rhs()->print(out, level + 1);
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
+    entity_bits_pair calc_entities() const noexcept override final {
         const auto l = m_lhs->calc_entities();
         const auto r = m_rhs->calc_entities();
         return std::make_pair(l.first & r.first, l.second & r.second);
@@ -420,86 +613,30 @@ public:
         return m_rhs;
     }
 
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        const char* value = m_lhs->eval_string(object);
+
+        switch (m_op) {
+            case string_op_type::equal:
+                return !std::strcmp(value, m_rhs->eval_string(object));
+            case string_op_type::not_equal:
+                return std::strcmp(value, m_rhs->eval_string(object));
+            case string_op_type::match:
+                return std::regex_search(value, *(dynamic_cast<RegexValue*>(m_rhs)->value()));
+            case string_op_type::not_match:
+                return !std::regex_search(value, *(dynamic_cast<RegexValue*>(m_rhs)->value()));
+            default:
+                break;
+        }
+
+        throw std::runtime_error{"unknown op"};
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
+    }
+
 }; // class BinaryStrOperation
-
-class IntegerValue : public ExprNode {
-
-    std::int64_t m_value;
-
-public:
-
-    constexpr IntegerValue(std::int64_t value) :
-        m_value(value) {
-    }
-
-    expr_node_type expression_type() const noexcept override {
-        return expr_node_type::integer_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override {
-        out << "INT_VALUE[" << m_value << "]\n";
-    }
-
-    std::int64_t value() const noexcept {
-        return m_value;
-    }
-
-}; // class IntegerValue
-
-class StringValue : public ExprNode {
-
-    std::string m_value;
-
-public:
-
-    StringValue(const std::string& value) :
-        m_value(value) {
-    }
-
-    expr_node_type expression_type() const noexcept override {
-        return expr_node_type::string_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override {
-        out << "STR_VALUE[" << m_value << "]\n";
-    }
-
-    const std::string& value() const noexcept {
-        return m_value;
-    }
-
-}; // class StringValue
-
-class RegexValue : public ExprNode {
-
-    std::string m_str;
-    std::regex m_value;
-
-public:
-
-    RegexValue(const std::regex& value) :
-        m_str("UNKNOWN"),
-        m_value(value) {
-    }
-
-    RegexValue(const std::string& value) :
-        m_str(value),
-        m_value(value) {
-    }
-
-    expr_node_type expression_type() const noexcept override {
-        return expr_node_type::regex_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override {
-        out << "REGEX_VALUE[" << m_str << "]\n";
-    }
-
-    const std::regex* value() const noexcept {
-        return &m_value;
-    }
-
-}; // class RegexValue
 
 class StringComp : public ExprNode {
 
@@ -514,11 +651,11 @@ public:
         assert(value);
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::string_comp;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "STRING_COMP[" << operator_name(m_op) << "]\n";
         m_value->print(out, level + 1);
     }
@@ -546,11 +683,11 @@ public:
         m_val_expr(val_expr ? val_expr : new BoolValue(true)) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::tags_expr;
     }
 
-    void do_print(std::ostream& out, int level) const override {
+    void do_print(std::ostream& out, int level) const override final {
         out << "TAGS_ATTR\n";
         m_key_expr->print(out, level + 1);
         m_val_expr->print(out, level + 1);
@@ -576,11 +713,11 @@ public:
         m_key(str) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_has_key;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "HAS_KEY \"" << m_key << "\"\n";
     }
 
@@ -604,11 +741,11 @@ public:
         m_value(value) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_tag_str;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
     }
 
@@ -649,11 +786,11 @@ public:
         m_value_regex = std::regex{m_value, options};
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_tag_regex;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
     }
 
@@ -689,11 +826,11 @@ public:
         m_value(value) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_attr_int;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "CHECK_ATTR " << m_attr << " " << m_oper << " " << m_value << "\n";
     }
 
@@ -721,7 +858,7 @@ public:
         m_type(osmium::char_to_item_type(type[0])) {
     }
 
-    expr_node_type expression_type() const noexcept override {
+    expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_has_type;
     }
 
@@ -729,13 +866,21 @@ public:
         return m_type;
     }
 
-    void do_print(std::ostream& out, int /*level*/) const override {
+    void do_print(std::ostream& out, int /*level*/) const override final {
         out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
     }
 
-    entity_bits_pair calc_entities() const noexcept override {
+    entity_bits_pair calc_entities() const noexcept override final {
         auto e = osmium::osm_entity_bits::from_item_type(m_type);
         return std::make_pair(e, ~e);
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        return object.type() == m_type;
+    }
+
+    int64_t eval_int(const osmium::OSMObject& object) const override final {
+        return eval_bool(object) ? 1 : 0;
     }
 
 };
@@ -754,11 +899,18 @@ public:
     }
 
     void print_tree(std::ostream& out) const {
+        assert(m_root);
         m_root->print(out, 0);
     }
 
     osmium::osm_entity_bits::type entities() const noexcept {
+        assert(m_root);
         return m_root->entities();
+    }
+
+    bool match(const osmium::OSMObject& object) const {
+        assert(m_root);
+        return m_root->eval_bool(object);
     }
 
 }; // class OSMObjectFilter

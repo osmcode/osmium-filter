@@ -2,6 +2,9 @@
 add_executable(osmium-filter main.cpp object_filter.cpp compile.cpp)
 target_link_libraries(osmium-filter ${NativeJIT_LIBRARIES} ${OSMIUM_LIBRARIES} ${Boost_LIBRARIES})
 
+add_executable(osmium-filter-simple simple.cpp object_filter.cpp)
+target_link_libraries(osmium-filter-simple ${OSMIUM_LIBRARIES} ${Boost_LIBRARIES})
+
 add_executable(osmium-filter-test test.cpp object_filter.cpp compile.cpp)
 target_link_libraries(osmium-filter-test ${NativeJIT_LIBRARIES} ${OSMIUM_LIBRARIES} ${Boost_LIBRARIES})
 
