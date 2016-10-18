@@ -121,15 +121,15 @@ NativeJIT::Node<bool>& CompiledFilter::compile_not(const NotExpr* e) {
 typedef std::int64_t (*getter_func_int)(const osmium::OSMObject&);
 typedef const char* (*getter_func_str)(const osmium::OSMObject&);
 
-getter_func_int attr_to_func_int(attribute_type attr) {
+getter_func_int attr_to_func_int(integer_attribute_type attr) {
     switch (attr) {
-        case attribute_type::id:
+        case integer_attribute_type::id:
             return detail::get_id;
-        case attribute_type::version:
+        case integer_attribute_type::version:
             return detail::get_version;
-        case attribute_type::changeset:
+        case integer_attribute_type::changeset:
             return detail::get_changeset;
-        case attribute_type::uid:
+        case integer_attribute_type::uid:
             return detail::get_uid;
         default:
             break;
@@ -137,9 +137,9 @@ getter_func_int attr_to_func_int(attribute_type attr) {
     assert(false);
 }
 
-getter_func_str attr_to_func_str(attribute_type attr) {
+getter_func_str attr_to_func_str(string_attribute_type attr) {
     switch (attr) {
-        case attribute_type::user:
+        case string_attribute_type::user:
             return detail::get_user;
         default:
             break;

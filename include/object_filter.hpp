@@ -16,36 +16,31 @@
 #include <osmium/osm/entity_bits.hpp>
 #include <osmium/osm/object.hpp>
 
-enum class attribute_type {
-    type      = 0,
-    id        = 1,
-    version   = 2,
-    visible   = 3,
-    changeset = 4,
-    timestamp = 5,
-    uid       = 6,
-    user      = 7,
-    lat       = 8,
-    lon       = 9,
-    tags      = 10,
-    nodes     = 11,
-    members   = 12
+enum class integer_attribute_type {
+    id        = 0,
+    version   = 1,
+    changeset = 2,
+    uid       = 3
 };
 
-inline const char* attribute_name(attribute_type attr) noexcept {
+enum class string_attribute_type {
+    user      = 0
+};
+
+inline const char* attribute_name(integer_attribute_type attr) noexcept {
     static const char* names[] = {
         "id",
         "version",
-        "visible",
         "changeset",
-        "timestamp",
-        "uid",
-        "user",
-        "tags",
-        "lat",
-        "lon",
-        "nodes",
-        "members"
+        "uid"
+    };
+
+    return names[int(attr)];
+}
+
+inline const char* attribute_name(string_attribute_type attr) noexcept {
+    static const char* names[] = {
+        "user"
     };
 
     return names[int(attr)];
@@ -451,7 +446,7 @@ public:
 
 class IntegerAttribute : public IntegerExpression {
 
-    attribute_type m_attribute;
+    integer_attribute_type m_attribute;
 
 protected:
 
@@ -461,53 +456,40 @@ protected:
 
 public:
 
-    IntegerAttribute(attribute_type attr) :
+    IntegerAttribute(integer_attribute_type attr) noexcept :
         m_attribute(attr) {
-    }
-
-    IntegerAttribute(const std::string& attr) {
-        if (attr == "@id") {
-            m_attribute = attribute_type::id;
-        } else if (attr == "@version") {
-            m_attribute = attribute_type::version;
-        } else if (attr == "@changeset") {
-            m_attribute = attribute_type::changeset;
-        } else if (attr == "@uid") {
-            m_attribute = attribute_type::uid;
-        } else {
-            throw std::runtime_error{"not an integer attribute"};
-        }
     }
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::integer_attribute;
     }
 
-    attribute_type attribute() const noexcept {
+    integer_attribute_type attribute() const noexcept {
         return m_attribute;
     }
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
         switch (m_attribute) {
-            case attribute_type::id:
+            case integer_attribute_type::id:
                 return object.id();
-            case attribute_type::version:
+            case integer_attribute_type::version:
                 return object.version();
-            case attribute_type::changeset:
+            case integer_attribute_type::changeset:
                 return object.changeset();
-            case attribute_type::uid:
+            case integer_attribute_type::uid:
                 return object.uid();
             default:
                 break;
         }
-        throw std::runtime_error{"not an int"};
+
+        assert(false);
     }
 
 }; // class IntegerAttribute
 
 class StringAttribute : public StringExpression {
 
-    attribute_type m_attribute;
+    string_attribute_type m_attribute;
 
 protected:
 
@@ -517,26 +499,21 @@ protected:
 
 public:
 
-    StringAttribute(const std::string& attr) {
-        if (attr == "@user") {
-            m_attribute = attribute_type::user;
-        } else {
-            throw std::runtime_error{"not a string attribute"};
-        }
+    StringAttribute(string_attribute_type attr) noexcept :
+        m_attribute(attr) {
     }
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::string_attribute;
     }
 
-    attribute_type attribute() const noexcept {
+    string_attribute_type attribute() const noexcept {
         return m_attribute;
     }
 
     const char* eval_string(const osmium::OSMObject& object) const override final {
-        if (m_attribute != attribute_type::user) {
-            throw std::runtime_error{"not a string"};
-        }
+        assert(m_attribute == string_attribute_type::user);
+
         return object.user();
     }
 

@@ -94,12 +94,28 @@ ExprNode* check_object_type_expr(const boost::fusion::vector<std::string>& e) {
 
 ExprNode* int_attr_expr(const boost::fusion::vector<std::string>& e) {
     auto attr = boost::fusion::at_c<0>(e);
-    return new IntegerAttribute{attr};
+
+    if (attr == "@id") {
+        return new IntegerAttribute{integer_attribute_type::id};
+    } else if (attr == "@version") {
+        return new IntegerAttribute{integer_attribute_type::version};
+    } else if (attr == "@changeset") {
+        return new IntegerAttribute{integer_attribute_type::changeset};
+    } else if (attr == "@uid") {
+        return new IntegerAttribute{integer_attribute_type::uid};
+    }
+
+    throw std::runtime_error{"Not an integer attribute"};
 }
 
 ExprNode* str_attr_expr(const boost::fusion::vector<std::string>& e) {
     auto attr = boost::fusion::at_c<0>(e);
-    return new StringAttribute{attr};
+
+    if (attr == "@user") {
+        return new StringAttribute{string_attribute_type::user};
+    }
+
+    throw std::runtime_error{"Not a string attribute"};
 }
 
 ExprNode* string_comp_expr(const boost::fusion::vector<std::tuple<string_op_type, ExprNode*>>& e) {
