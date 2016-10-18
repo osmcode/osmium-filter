@@ -40,6 +40,10 @@ using entity_bits_pair = std::pair<osmium::osm_entity_bits::type, osmium::osm_en
 
 class ExprNode {
 
+protected:
+
+    virtual void do_print(std::ostream& out, int level) const = 0;
+
 public:
 
     constexpr ExprNode() = default;
@@ -48,8 +52,6 @@ public:
     }
 
     virtual expr_node_type expression_type() const noexcept = 0;
-
-    virtual void do_print(std::ostream& out, int level) const = 0;
 
     virtual entity_bits_pair calc_entities() const noexcept {
         return std::make_pair(osmium::osm_entity_bits::all,
@@ -122,6 +124,12 @@ class BoolValue : public BoolExpression {
 
     bool m_value;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << (m_value ? "TRUE" : "FALSE") << "\n";
+    }
+
 public:
 
     constexpr BoolValue(bool value = true) :
@@ -130,10 +138,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::bool_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << (m_value ? "TRUE" : "FALSE") << "\n";
     }
 
     bool eval_bool(const osmium::OSMObject& /*object*/) const override final {
@@ -162,6 +166,16 @@ public:
 
 class AndExpr : public WithSubExpr {
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "BOOL_AND\n";
+        for (const auto* child : m_children) {
+            assert(child);
+            child->print(out, level + 1);
+        }
+    }
+
 public:
 
     AndExpr(std::vector<ExprNode*> children) :
@@ -170,14 +184,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::and_expr;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "BOOL_AND\n";
-        for (const auto* child : m_children) {
-            assert(child);
-            child->print(out, level + 1);
-        }
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
@@ -198,6 +204,16 @@ public:
 
 class OrExpr : public WithSubExpr {
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "BOOL_OR\n";
+        for (const auto* child : m_children) {
+            assert(child);
+            child->print(out, level + 1);
+        }
+    }
+
 public:
 
     OrExpr(std::vector<ExprNode*> children) :
@@ -206,14 +222,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::or_expr;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "BOOL_OR\n";
-        for (const auto* child : m_children) {
-            assert(child);
-            child->print(out, level + 1);
-        }
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
@@ -237,6 +245,14 @@ class NotExpr : public BoolExpression {
 
     ExprNode* m_child;
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "BOOL_NOT\n";
+        m_child->print(out, level + 1);
+    }
+
+
 public:
 
     constexpr NotExpr(ExprNode* e) :
@@ -250,11 +266,6 @@ public:
 
     const ExprNode* child() const noexcept {
         return m_child;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "BOOL_NOT\n";
-        m_child->print(out, level + 1);
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
@@ -272,6 +283,12 @@ class IntegerValue : public IntegerExpression {
 
     std::int64_t m_value;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "INT_VALUE[" << m_value << "]\n";
+    }
+
 public:
 
     constexpr IntegerValue(std::int64_t value) :
@@ -280,10 +297,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::integer_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "INT_VALUE[" << m_value << "]\n";
     }
 
     std::int64_t value() const noexcept {
@@ -300,6 +313,12 @@ class StringValue : public StringExpression {
 
     std::string m_value;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "STR_VALUE[" << m_value << "]\n";
+    }
+
 public:
 
     StringValue(const std::string& value) :
@@ -308,10 +327,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::string_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "STR_VALUE[" << m_value << "]\n";
     }
 
     const std::string& value() const noexcept {
@@ -329,6 +344,12 @@ class RegexValue : public ExprNode {
     std::string m_str;
     std::regex m_value;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "REGEX_VALUE[" << m_str << "]\n";
+    }
+
 public:
 
     RegexValue(const std::regex& value) :
@@ -343,10 +364,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::regex_value;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "REGEX_VALUE[" << m_str << "]\n";
     }
 
     const std::regex* value() const noexcept {
@@ -427,6 +444,12 @@ class IntegerAttribute : public IntegerExpression {
 
     attribute_type m_attribute;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
+    }
+
 public:
 
     IntegerAttribute(const std::string& attr) {
@@ -445,10 +468,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::integer_attribute;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "INT_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
     attribute_type attribute() const noexcept {
@@ -477,6 +496,12 @@ class StringAttribute : public StringExpression {
 
     attribute_type m_attribute;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "STR_ATTR[" << attribute_name(m_attribute) << "]\n";
+    }
+
 public:
 
     StringAttribute(const std::string& attr) {
@@ -489,10 +514,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::string_attribute;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "STR_ATTR[" << attribute_name(m_attribute) << "]\n";
     }
 
     attribute_type attribute() const noexcept {
@@ -511,6 +532,14 @@ class BinaryIntOperation : public BoolExpression {
     ExprNode* m_rhs;
     integer_op_type m_op;
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "INT_BIN_OP[" << operator_name(m_op) << "]\n";
+        lhs()->print(out, level + 1);
+        rhs()->print(out, level + 1);
+    }
+
 public:
 
     constexpr BinaryIntOperation(ExprNode* lhs, integer_op_type op, ExprNode* rhs) noexcept :
@@ -523,12 +552,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::binary_int_op;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "INT_BIN_OP[" << operator_name(m_op) << "]\n";
-        lhs()->print(out, level + 1);
-        rhs()->print(out, level + 1);
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
@@ -581,6 +604,14 @@ class BinaryStrOperation : public BoolExpression {
     ExprNode* m_rhs;
     string_op_type m_op;
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "BIN_STR_OP[" << operator_name(m_op) << "]\n";
+        lhs()->print(out, level + 1);
+        rhs()->print(out, level + 1);
+    }
+
 public:
 
     constexpr BinaryStrOperation(ExprNode* lhs, string_op_type op, ExprNode* rhs) noexcept :
@@ -593,12 +624,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::binary_str_op;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "BIN_STR_OP[" << operator_name(m_op) << "]\n";
-        lhs()->print(out, level + 1);
-        rhs()->print(out, level + 1);
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
@@ -645,6 +670,13 @@ class StringComp : public ExprNode {
     string_op_type m_op;
     ExprNode*      m_value;
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "STRING_COMP[" << operator_name(m_op) << "]\n";
+        m_value->print(out, level + 1);
+    }
+
 public:
 
     StringComp(string_op_type op, ExprNode* value) :
@@ -655,11 +687,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::string_comp;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "STRING_COMP[" << operator_name(m_op) << "]\n";
-        m_value->print(out, level + 1);
     }
 
     string_op_type op() const noexcept {
@@ -678,6 +705,14 @@ class TagsExpr : public BoolExpression {
     ExprNode* m_key_expr;
     ExprNode* m_val_expr;
 
+protected:
+
+    void do_print(std::ostream& out, int level) const override final {
+        out << "TAGS_ATTR\n";
+        m_key_expr->print(out, level + 1);
+        m_val_expr->print(out, level + 1);
+    }
+
 public:
 
     TagsExpr(ExprNode* key_expr, ExprNode* val_expr) :
@@ -687,12 +722,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::tags_expr;
-    }
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "TAGS_ATTR\n";
-        m_key_expr->print(out, level + 1);
-        m_val_expr->print(out, level + 1);
     }
 
     ExprNode* key_expr() const noexcept {
@@ -709,6 +738,12 @@ class CheckHasKeyExpr : public BoolExpression {
 
     std::string m_key;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "HAS_KEY \"" << m_key << "\"\n";
+    }
+
 public:
 
     CheckHasKeyExpr(const std::string& str) :
@@ -717,10 +752,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_has_key;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "HAS_KEY \"" << m_key << "\"\n";
     }
 
     const char* key() const noexcept {
@@ -735,6 +766,12 @@ class CheckTagStrExpr : public BoolExpression {
     std::string m_oper;
     std::string m_value;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
+    }
+
 public:
 
     CheckTagStrExpr(const std::string& key, const std::string& oper, const std::string& value) :
@@ -745,10 +782,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_tag_str;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
     }
 
     const char* key() const noexcept {
@@ -773,6 +806,12 @@ class CheckTagRegexExpr : public BoolExpression {
     std::regex m_value_regex;
     bool m_case_insensitive;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
+    }
+
 public:
 
     CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, boost::optional<char>& ci) :
@@ -790,10 +829,6 @@ public:
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_tag_regex;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
     }
 
     const char* key() const noexcept {
@@ -818,6 +853,12 @@ class CheckObjectTypeExpr : public BoolExpression {
 
     osmium::item_type m_type;
 
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
+    }
+
 public:
 
     CheckObjectTypeExpr(const std::string& type) :
@@ -830,10 +871,6 @@ public:
 
     osmium::item_type type() const noexcept {
         return m_type;
-    }
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
