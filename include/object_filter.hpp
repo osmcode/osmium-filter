@@ -813,6 +813,10 @@ public:
         assert(rhs);
     }
 
+    constexpr BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept :
+        BinaryIntOperation(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
+    }
+
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::binary_int_op;
     }
@@ -894,6 +898,10 @@ public:
         m_op(op) {
         assert(lhs);
         assert(rhs);
+    }
+
+    constexpr BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept :
+        BinaryStrOperation(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -1097,6 +1105,10 @@ public:
         m_value(value) {
     }
 
+    CheckTagStrExpr(const std::tuple<std::string, std::string, std::string>& params) :
+        CheckTagStrExpr(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
+    }
+
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::check_tag_str;
     }
@@ -1131,7 +1143,7 @@ protected:
 
 public:
 
-    CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, boost::optional<char>& ci) :
+    CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, const boost::optional<char>& ci) :
         m_key(key),
         m_oper(oper),
         m_value(value),
@@ -1142,6 +1154,10 @@ public:
             options |= std::regex::icase;
         }
         m_value_regex = std::regex{m_value, options};
+    }
+
+    CheckTagRegexExpr(const std::tuple<std::string, std::string, std::string, boost::optional<char>>& params) :
+        CheckTagRegexExpr(std::get<0>(params), std::get<1>(params), std::get<2>(params), std::get<3>(params)) {
     }
 
     expr_node_type expression_type() const noexcept override final {
