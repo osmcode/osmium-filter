@@ -13,10 +13,11 @@
 #include "object_filter.hpp"
 
 class CompiledFilter {
+    const size_t memory_allocation_size = 81920;
 
-    NativeJIT::ExecutionBuffer m_code_allocator{8192};
-    NativeJIT::Allocator m_allocator{8192};
-    NativeJIT::FunctionBuffer m_code{m_code_allocator, 8192};
+    NativeJIT::ExecutionBuffer m_code_allocator{memory_allocation_size};
+    NativeJIT::Allocator m_allocator{memory_allocation_size};
+    NativeJIT::FunctionBuffer m_code{m_code_allocator, static_cast<unsigned int>(memory_allocation_size)};
     NativeJIT::Function<bool, const osmium::OSMObject&> m_expression{m_allocator, m_code};
 
     NativeJIT::Function<bool, const osmium::OSMObject&>::FunctionType m_function;
