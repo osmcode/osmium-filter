@@ -932,40 +932,6 @@ public:
 
 }; // class BinaryStrOperation
 
-class StringComp : public ExprNode {
-
-    string_op_type m_op;
-    ExprNode*      m_value;
-
-protected:
-
-    void do_print(std::ostream& out, int level) const override final {
-        out << "STRING_COMP[" << operator_name(m_op) << "]\n";
-        m_value->print(out, level + 1);
-    }
-
-public:
-
-    StringComp(string_op_type op, ExprNode* value) :
-        m_op(op),
-        m_value(value) {
-        assert(value);
-    }
-
-    expr_node_type expression_type() const noexcept override final {
-        return expr_node_type::string_comp;
-    }
-
-    string_op_type op() const noexcept {
-        return m_op;
-    }
-
-    ExprNode* value() const noexcept {
-        return m_value;
-    }
-
-}; // class StringComp
-
 class TagsExpr : public IntegerExpression {
 
     ExprNode* m_expr;

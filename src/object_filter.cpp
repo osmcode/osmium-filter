@@ -127,12 +127,6 @@ ExprNode* str_attr_expr(const boost::fusion::vector<std::string>& e) {
     throw std::runtime_error{"Not a string attribute"};
 }
 
-ExprNode* string_comp_expr(const boost::fusion::vector<std::tuple<string_op_type, ExprNode*>>& e) {
-    auto op    = std::get<0>(boost::fusion::at_c<0>(e));
-    auto value = std::get<1>(boost::fusion::at_c<0>(e));
-    return new StringComp{op, value};
-}
-
 ExprNode* make_tags_expr(const boost::fusion::vector<ExprNode*>& e) {
     auto expr = boost::fusion::at_c<0>(e);
     return new TagsExpr{expr};
@@ -183,7 +177,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     template <typename... T>
     using rs = qi::rule<Iterator, comment_skipper<Iterator>, T...>;
 
-    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str, string_comp;
+    rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str;
     rs<ExprNode*()> subexpression, tags_expr, nodes_expr, members_expr, subexpr_int;
     rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex_old, object_type, attr_type;
     rs<integer_op_type> oper_int;
@@ -285,9 +279,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | ascii::string("@value")
                        | ascii::string("@role"))[qi::_val = boost::phoenix::bind(&str_attr_expr, _1)];
         attr_int.name("string attribute");
-
-        //XXX string_comp    = (binary_str_oper_str | binary_str_oper_regex)[qi::_val = boost::phoenix::bind(&string_comp_expr, _1)];
-        string_comp    = binary_str_oper_str[qi::_val = boost::phoenix::bind(&string_comp_expr, _1)];
 
         subexpression  = qi::lit('[') > expression > qi::lit(']');
         subexpression.name("tags expression");
