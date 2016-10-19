@@ -200,6 +200,7 @@ NativeJIT::Node<bool>& CompiledFilter::compile_binary_int_op(const ExprNode* e) 
     assert(false);
 }
 
+#if 0
 NativeJIT::Node<bool>& CompiledFilter::tags_expr(const TagsExpr* e) {
     auto* ke = dynamic_cast<StringComp*>(e->key_expr());
     auto* ve = dynamic_cast<StringComp*>(e->val_expr());
@@ -219,6 +220,7 @@ NativeJIT::Node<bool>& CompiledFilter::tags_expr(const TagsExpr* e) {
         m_expression.Immediate(vev->value().c_str())
     );
 }
+#endif
 
 NativeJIT::Node<bool>& CompiledFilter::compile_binary_str_op(const ExprNode* e) {
     auto* x = dynamic_cast<const BinaryStrOperation*>(e);
@@ -338,8 +340,8 @@ NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
             return check_tag_str(static_cast<const CheckTagStrExpr*>(node));
         case expr_node_type::check_tag_regex:
             return check_tag_regex(static_cast<const CheckTagRegexExpr*>(node));
-        case expr_node_type::tags_expr:
-            return tags_expr(static_cast<const TagsExpr*>(node));
+/*        case expr_node_type::tags_expr:
+            return tags_expr(static_cast<const TagsExpr*>(node));*/
         default:
             break;
     }

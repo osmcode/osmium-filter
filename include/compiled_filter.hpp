@@ -34,7 +34,9 @@ class CompiledFilter {
     NativeJIT::Node<const char*>& compile_string_value(const ExprNode* e);
     NativeJIT::Node<const std::regex*>& compile_regex_value(const ExprNode* e);
 
-    NativeJIT::Node<bool>& tags_expr(const TagsExpr* e);
+    NativeJIT::Node<bool>& make_tags_expr(const TagsExpr* e);
+    NativeJIT::Node<bool>& make_nodes_expr(const TagsExpr* e);
+    NativeJIT::Node<bool>& make_members_expr(const TagsExpr* e);
 
     NativeJIT::Node<bool>& check_object_type(const CheckObjectTypeExpr* e);
     NativeJIT::Node<bool>& check_has_key(const CheckHasKeyExpr* e);
