@@ -939,7 +939,7 @@ class TagsExpr : public IntegerExpression {
 protected:
 
     void do_print(std::ostream& out, int level) const override final {
-        out << "CHECK_TAGS\n";
+        out << "COUNT_TAGS\n";
         m_expr->print(out, level + 1);
     }
 
@@ -972,7 +972,7 @@ class NodesExpr : public IntegerExpression {
 protected:
 
     void do_print(std::ostream& out, int level) const override final {
-        out << "CHECK_NODES\n";
+        out << "COUNT_NODES\n";
         m_expr->print(out, level + 1);
     }
 
@@ -1015,7 +1015,7 @@ class MembersExpr : public IntegerExpression {
 protected:
 
     void do_print(std::ostream& out, int level) const override final {
-        out << "CHECK_MEMBERS\n";
+        out << "COUNT_MEMBERS\n";
         m_expr->print(out, level + 1);
     }
 

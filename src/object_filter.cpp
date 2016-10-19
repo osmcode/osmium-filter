@@ -87,44 +87,19 @@ ExprNode* check_tag_regex_expr(const boost::fusion::vector<std::tuple<std::strin
     return new CheckTagRegexExpr(key, oper, value, cins);
 }
 
-ExprNode* check_object_type_expr(const boost::fusion::vector<std::string>& e) {
-    const std::string& type = boost::fusion::at_c<0>(e);
-    assert(!type.empty());
-    return new CheckObjectTypeExpr(osmium::char_to_item_type(type[0]));
+ExprNode* check_object_type_expr(const boost::fusion::vector<osmium::item_type>& e) {
+    const auto type = boost::fusion::at_c<0>(e);
+    return new CheckObjectTypeExpr(type);
 }
 
-ExprNode* int_attr_expr(const boost::fusion::vector<std::string>& e) {
+ExprNode* int_attr_expr(const boost::fusion::vector<integer_attribute_type>& e) {
     auto attr = boost::fusion::at_c<0>(e);
-
-    if (attr == "@id") {
-        return new IntegerAttribute{integer_attribute_type::id};
-    } else if (attr == "@version") {
-        return new IntegerAttribute{integer_attribute_type::version};
-    } else if (attr == "@changeset") {
-        return new IntegerAttribute{integer_attribute_type::changeset};
-    } else if (attr == "@uid") {
-        return new IntegerAttribute{integer_attribute_type::uid};
-    } else if (attr == "@ref") {
-        return new IntegerAttribute{integer_attribute_type::ref};
-    }
-
-    throw std::runtime_error{"Not an integer attribute"};
+    return new IntegerAttribute{attr};
 }
 
-ExprNode* str_attr_expr(const boost::fusion::vector<std::string>& e) {
+ExprNode* str_attr_expr(const boost::fusion::vector<string_attribute_type>& e) {
     auto attr = boost::fusion::at_c<0>(e);
-
-    if (attr == "@user") {
-        return new StringAttribute{string_attribute_type::user};
-    } else if (attr == "@key") {
-        return new StringAttribute{string_attribute_type::key};
-    } else if (attr == "@value") {
-        return new StringAttribute{string_attribute_type::value};
-    } else if (attr == "@role") {
-        return new StringAttribute{string_attribute_type::role};
-    }
-
-    throw std::runtime_error{"Not a string attribute"};
+    return new StringAttribute{attr};
 }
 
 ExprNode* make_tags_expr(const boost::fusion::vector<ExprNode*>& e) {
@@ -179,7 +154,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
     rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str;
     rs<ExprNode*()> subexpression, tags_expr, nodes_expr, members_expr, subexpr_int;
-    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex_old, object_type, attr_type;
+    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex_old;
+    rs<osmium::item_type()> object_type, attr_type;
     rs<integer_op_type> oper_int;
     rs<string_op_type> oper_str;
     rs<string_op_type> oper_regex;
@@ -266,19 +242,20 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | key_oper_regex_value[qi::_val = boost::phoenix::bind(&check_tag_regex_expr, _1)];
         tag.name("tag");
 
-        // attributes of type int
-        attr_int       = (ascii::string("@id")
-                       | ascii::string("@version")
-                       | ascii::string("@uid")
-                       | ascii::string("@changeset")
-                       | ascii::string("@ref"))[qi::_val = boost::phoenix::bind(&int_attr_expr, _1)];
-        attr_int.name("int attribute");
+        attr_int       = ((qi::lit("@id")        > qi::attr(integer_attribute_type::id))
+                         |(qi::lit("@version")   > qi::attr(integer_attribute_type::version))
+                         |(qi::lit("@uid")       > qi::attr(integer_attribute_type::uid))
+                         |(qi::lit("@changeset") > qi::attr(integer_attribute_type::changeset))
+                         |(qi::lit("@ref")       > qi::attr(integer_attribute_type::ref))
+                         )[qi::_val = boost::phoenix::bind(&int_attr_expr, _1)];
+        attr_int.name("integer attribute");
 
-        attr_str       = (ascii::string("@user")
-                       | ascii::string("@key")
-                       | ascii::string("@value")
-                       | ascii::string("@role"))[qi::_val = boost::phoenix::bind(&str_attr_expr, _1)];
-        attr_int.name("string attribute");
+        attr_str       = ((qi::lit("@user")  > qi::attr(string_attribute_type::user))
+                         |(qi::lit("@key")   > qi::attr(string_attribute_type::key))
+                         |(qi::lit("@value") > qi::attr(string_attribute_type::value))
+                         |(qi::lit("@role")  > qi::attr(string_attribute_type::role))
+                         )[qi::_val = boost::phoenix::bind(&str_attr_expr, _1)];
+        attr_str.name("string attribute");
 
         subexpression  = qi::lit('[') > expression > qi::lit(']');
         subexpression.name("tags expression");
@@ -320,9 +297,9 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         binary_str_oper.name("binary_str_oper");
 
         // name of OSM object type
-        object_type    = ascii::string("node")
-                       | ascii::string("way")
-                       | ascii::string("relation");
+        object_type    = (qi::lit("node")     > qi::attr(osmium::item_type::node))
+                       | (qi::lit("way")      > qi::attr(osmium::item_type::way))
+                       | (qi::lit("relation") > qi::attr(osmium::item_type::relation));
         object_type.name("object type");
 
         // OSM object type as attribute
