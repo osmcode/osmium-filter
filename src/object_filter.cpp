@@ -42,6 +42,30 @@ struct comment_skipper : public qi::grammar<Iterator> {
 
 };
 
+namespace detail {
+
+    ExprNode* boolean_and(const boost::fusion::vector<std::vector<ExprNode*>>& e) {
+        const auto expressions = boost::fusion::at_c<0>(e);
+        assert(!expressions.empty());
+        if (expressions.size() == 1) {
+            return expressions[0];
+        } else {
+            return new AndExpr{expressions};
+        }
+    }
+
+    ExprNode* boolean_or(const boost::fusion::vector<std::vector<ExprNode*>>& e) {
+        const auto expressions = boost::fusion::at_c<0>(e);
+        assert(!expressions.empty());
+        if (expressions.size() == 1) {
+            return expressions[0];
+        } else {
+            return new OrExpr{expressions};
+        }
+    }
+
+}
+
 template <typename Iterator>
 struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>, ExprNode*()> {
 
@@ -213,10 +237,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         primitive.name("condition");
 
         // boolean logic expressions
-        expression      = (term % qi::lit("or"))[qi::_val = boost::phoenix::new_<OrExpr>(qi::_1)];
+        expression      = (term % qi::lit("or"))[qi::_val = boost::phoenix::bind(&detail::boolean_or, _1)];
         expression.name("expression");
 
-        term            = (factor % qi::lit("and"))[qi::_val = boost::phoenix::new_<AndExpr>(qi::_1)];
+        term            = (factor % qi::lit("and"))[qi::_val = boost::phoenix::bind(&detail::boolean_and, _1)];
         term.name("term");
 
         paren_expression = '('
