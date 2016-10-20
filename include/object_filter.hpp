@@ -1144,7 +1144,11 @@ public:
         return m_key.c_str();
     }
 
-};
+    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        return object.tags().has_key(m_key.c_str());
+    }
+
+}; // class CheckHasKeyExpr
 
 class CheckTagStrExpr : public BoolExpression {
 
@@ -1188,7 +1192,16 @@ public:
         return m_value.c_str();
     }
 
-};
+    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        const char* tag_value = object.tags().get_value_by_key(m_key.c_str());
+        if (!tag_value) {
+            return false;
+        }
+        const bool has_tag = !std::strcmp(tag_value, value());
+        return m_oper[0] == '!' ? !has_tag : has_tag;
+    }
+
+}; // class CheckTagStrExpr
 
 class CheckTagRegexExpr : public BoolExpression {
 
@@ -1246,7 +1259,16 @@ public:
         return m_case_insensitive;
     }
 
-};
+    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        const char* tag_value = object.tags().get_value_by_key(m_key.c_str());
+        if (!tag_value) {
+            return false;
+        }
+        const bool has_tag = std::regex_search(tag_value, m_value_regex);
+        return m_oper[0] == '!' ? !has_tag : has_tag;
+    }
+
+}; // class CheckTagRegexExpr
 
 
 class OSMObjectFilter {
