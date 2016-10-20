@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <regex>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <utility>

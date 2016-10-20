@@ -1,11 +1,13 @@
 
 #include <boost/program_options.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <streambuf>
 #include <string>
+#include <vector>
 
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>

@@ -1,14 +1,14 @@
 #pragma once
 
+#include <cstdint>
 #include <regex>
-#include <string>
 
 #include <NativeJIT/CodeGen/ExecutionBuffer.h>
 #include <NativeJIT/CodeGen/FunctionBuffer.h>
 #include <NativeJIT/Function.h>
 #include <Temporary/Allocator.h>
 
-#include <osmium/osm.hpp>
+#include <osmium/osm/object.hpp>
 
 #include "object_filter.hpp"
 

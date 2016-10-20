@@ -16,19 +16,19 @@ namespace detail {
     }
 
     std::int64_t get_id(const osmium::OSMObject& object) noexcept {
-        return int64_t(object.id());
+        return std::int64_t(object.id());
     }
 
     std::int64_t get_uid(const osmium::OSMObject& object) noexcept {
-        return int64_t(object.uid());
+        return std::int64_t(object.uid());
     }
 
     std::int64_t get_version(const osmium::OSMObject& object) noexcept {
-        return int64_t(object.version());
+        return std::int64_t(object.version());
     }
 
     std::int64_t get_changeset(const osmium::OSMObject& object) noexcept {
-        return int64_t(object.changeset());
+        return std::int64_t(object.changeset());
     }
 
     const char* get_user(const osmium::OSMObject& object) noexcept {
@@ -36,21 +36,21 @@ namespace detail {
     }
 
     std::int64_t get_count_tags(const osmium::OSMObject& object) noexcept {
-        return int64_t(object.tags().size());
+        return std::int64_t(object.tags().size());
     }
 
     std::int64_t get_count_nodes(const osmium::OSMObject& object) noexcept {
         if (object.type() != osmium::item_type::way) {
             return 0;
         }
-        return int64_t(static_cast<const osmium::Way&>(object).nodes().size());
+        return std::int64_t(static_cast<const osmium::Way&>(object).nodes().size());
     }
 
     std::int64_t get_count_members(const osmium::OSMObject& object) noexcept {
         if (object.type() != osmium::item_type::relation) {
             return 0;
         }
-        return int64_t(static_cast<const osmium::Relation&>(object).members().size());
+        return std::int64_t(static_cast<const osmium::Relation&>(object).members().size());
     }
 
     bool has_key(const osmium::OSMObject& object, const char* key) {

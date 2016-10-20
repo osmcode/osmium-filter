@@ -1,7 +1,6 @@
 
 #include <cassert>
 #include <cstdint>
-#include <cstring>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -11,18 +10,12 @@
 
 #include <boost/bind.hpp>
 #include <boost/fusion/adapted/std_tuple.hpp>
+#include <boost/optional.hpp>
+#include <boost/spirit/include/phoenix.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_grammar.hpp>
-#include <boost/optional.hpp>
 
-#include <boost/spirit/include/phoenix.hpp>
-#include <boost/spirit/include/phoenix_core.hpp>
-#include <boost/spirit/include/phoenix_operator.hpp>
-#include <boost/spirit/include/phoenix_fusion.hpp>
-#include <boost/spirit/include/phoenix_stl.hpp>
-#include <boost/spirit/include/phoenix_object.hpp>
-
-#include <osmium/osm.hpp>
+#include <osmium/osm/item_type.hpp>
 
 #include "object_filter.hpp"
 
@@ -267,13 +260,13 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 }; // struct OSMObjectFilterGrammar
 
 OSMObjectFilter::OSMObjectFilter(std::string& input) {
-    comment_skipper<std::string::iterator> skip;
+    comment_skipper<std::string::const_iterator> skip;
 
-    OSMObjectFilterGrammar<std::string::iterator> grammar;
+    OSMObjectFilterGrammar<std::string::const_iterator> grammar;
 
     ExprNode* root = nullptr;
-    auto first = input.begin();
-    auto last = input.end();
+    auto first = input.cbegin();
+    auto last  = input.cend();
     const bool result = qi::phrase_parse(
         first,
         last,
