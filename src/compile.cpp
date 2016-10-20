@@ -112,7 +112,7 @@ NativeJIT::Node<bool>& CompiledFilter::compile_or(const OrExpr* e) {
 }
 
 NativeJIT::Node<bool>& CompiledFilter::compile_not(const NotExpr* e) {
-    return m_expression.If(compile_bool(e->child()),
+    return m_expression.If(compile_bool(e->expr()),
                            m_expression.Immediate(false),
                            m_expression.Immediate(true)
     );

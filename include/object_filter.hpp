@@ -330,18 +330,22 @@ public:
 
 class WithSubExpr : public BoolExpression {
 
-protected:
-
     std::vector<std::unique_ptr<ExprNode>> m_children;
 
 public:
 
     explicit WithSubExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
         m_children(std::move(children)) {
+#ifndef NDEBUG
+        for (const auto& child : m_children) {
+            assert(child);
+        }
+#endif
     }
 
     explicit WithSubExpr(const std::vector<ExprNode*>& children) {
         for (auto* child : children) {
+            assert(child);
             m_children.emplace_back(child);
         }
     }
@@ -367,8 +371,7 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_AND\n";
-        for (const auto& child : m_children) {
-            assert(child);
+        for (const auto& child : children()) {
             child->print(out, level + 1);
         }
     }
@@ -428,8 +431,7 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_OR\n";
-        for (const auto& child : m_children) {
-            assert(child);
+        for (const auto& child : children()) {
             child->print(out, level + 1);
         }
     }
@@ -451,7 +453,6 @@ public:
     entity_bits_pair calc_entities() const noexcept override final {
         const auto bits = std::make_pair(osmium::osm_entity_bits::nothing, osmium::osm_entity_bits::nothing);
         return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const std::unique_ptr<ExprNode>& e) {
-            assert(e);
             const auto x = e->calc_entities();
             return std::make_pair(b.first | x.first, b.second | x.second);
         });
@@ -477,55 +478,55 @@ public:
 
 class NotExpr : public BoolExpression {
 
-    std::unique_ptr<ExprNode> m_child;
+    std::unique_ptr<ExprNode> m_expr;
 
 protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_NOT\n";
-        m_child->print(out, level + 1);
+        expr()->print(out, level + 1);
     }
 
 
 public:
 
     explicit NotExpr(std::unique_ptr<ExprNode>&& e) :
-        m_child(std::move(e)) {
+        m_expr(std::move(e)) {
         assert(e);
     }
 
     explicit NotExpr(ExprNode* e) {
         assert(e);
-        m_child.reset(e);
+        m_expr.reset(e);
     }
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::not_expr;
     }
 
-    const ExprNode* child() const noexcept {
-        return m_child.get();
+    const ExprNode* expr() const noexcept {
+        return m_expr.get();
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
-        const auto e = m_child->calc_entities();
+        const auto e = expr()->calc_entities();
         return std::make_pair(e.second, e.first);
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
-        return !m_child->eval_bool(object);
+        return !expr()->eval_bool(object);
     }
 
     bool eval_bool(const osmium::Tag& tag) const override final {
-        return !m_child->eval_bool(tag);
+        return !expr()->eval_bool(tag);
     }
 
     bool eval_bool(const osmium::NodeRef& nr) const override final {
-        return !m_child->eval_bool(nr);
+        return !expr()->eval_bool(nr);
     }
 
     bool eval_bool(const osmium::RelationMember& member) const override final {
-        return !m_child->eval_bool(member);
+        return !expr()->eval_bool(member);
     }
 
 }; // class NotExpr
@@ -824,16 +825,14 @@ protected:
 
 public:
 
-    explicit BinaryIntOperation(std::unique_ptr<ExprNode>&& lhs, integer_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
+    explicit BinaryIntOperation(std::unique_ptr<ExprNode>&& lhs,
+                                integer_op_type op,
+                                std::unique_ptr<ExprNode>&& rhs) noexcept :
         m_lhs(std::move(lhs)),
         m_rhs(std::move(rhs)),
         m_op(op) {
         assert(lhs);
         assert(rhs);
-    }
-
-    explicit BinaryIntOperation(const std::tuple<std::unique_ptr<ExprNode>&&, integer_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
-        BinaryIntOperation(std::move(std::get<0>(params)), std::get<1>(params), std::move(std::get<2>(params))) {
     }
 
     explicit BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept {
@@ -846,16 +845,6 @@ public:
         return expr_node_type::binary_int_op;
     }
 
-    entity_bits_pair calc_entities() const noexcept override final {
-        const auto l = m_lhs->calc_entities();
-        const auto r = m_rhs->calc_entities();
-        return std::make_pair(l.first & r.first, l.second & r.second);
-    }
-
-    integer_op_type op() const noexcept {
-        return m_op;
-    }
-
     ExprNode* lhs() const noexcept {
         return m_lhs.get();
     }
@@ -864,19 +853,29 @@ public:
         return m_rhs.get();
     }
 
+    entity_bits_pair calc_entities() const noexcept override final {
+        const auto l = lhs()->calc_entities();
+        const auto r = rhs()->calc_entities();
+        return std::make_pair(l.first & r.first, l.second & r.second);
+    }
+
+    integer_op_type op() const noexcept {
+        return m_op;
+    }
+
     bool eval_bool(const osmium::OSMObject& object) const override final {
-        return compare(m_lhs->eval_int(object),
-                       m_rhs->eval_int(object));
+        return compare(lhs()->eval_int(object),
+                       rhs()->eval_int(object));
     }
 
     bool eval_bool(const osmium::NodeRef& nr) const override final {
-        return compare(m_lhs->eval_int(nr),
-                       m_rhs->eval_int(nr));
+        return compare(lhs()->eval_int(nr),
+                       rhs()->eval_int(nr));
     }
 
     bool eval_bool(const osmium::RelationMember& member) const override final {
-        return compare(m_lhs->eval_int(member),
-                       m_rhs->eval_int(member));
+        return compare(lhs()->eval_int(member),
+                       rhs()->eval_int(member));
     }
 
 }; // class BinaryIntOperation
@@ -889,7 +888,7 @@ class BinaryStrOperation : public BoolExpression {
 
     template <typename T>
     bool eval_bool_impl(const T& t) const {
-        const char* value = m_lhs->eval_string(t);
+        const char* value = lhs()->eval_string(t);
 
         switch (m_op) {
             case string_op_type::equal:
@@ -917,16 +916,14 @@ protected:
 
 public:
 
-    explicit BinaryStrOperation(std::unique_ptr<ExprNode>&& lhs, string_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
+    explicit BinaryStrOperation(std::unique_ptr<ExprNode>&& lhs,
+                                string_op_type op,
+                                std::unique_ptr<ExprNode>&& rhs) noexcept :
         m_lhs(std::move(lhs)),
         m_rhs(std::move(rhs)),
         m_op(op) {
         assert(lhs);
         assert(rhs);
-    }
-
-    explicit BinaryStrOperation(const std::tuple<std::unique_ptr<ExprNode>&&, string_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
-        BinaryStrOperation(std::move(std::get<0>(params)), std::get<1>(params), std::move(std::get<2>(params))) {
     }
 
     explicit BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept {
@@ -939,22 +936,22 @@ public:
         return expr_node_type::binary_str_op;
     }
 
-    entity_bits_pair calc_entities() const noexcept override final {
-        const auto l = m_lhs->calc_entities();
-        const auto r = m_rhs->calc_entities();
-        return std::make_pair(l.first & r.first, l.second & r.second);
-    }
-
-    string_op_type op() const noexcept {
-        return m_op;
-    }
-
     ExprNode* lhs() const noexcept {
         return m_lhs.get();
     }
 
     ExprNode* rhs() const noexcept {
         return m_rhs.get();
+    }
+
+    entity_bits_pair calc_entities() const noexcept override final {
+        const auto l = lhs()->calc_entities();
+        const auto r = rhs()->calc_entities();
+        return std::make_pair(l.first & r.first, l.second & r.second);
+    }
+
+    string_op_type op() const noexcept {
+        return m_op;
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
@@ -979,20 +976,22 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "COUNT_TAGS\n";
-        m_expr->print(out, level + 1);
+        expr()->print(out, level + 1);
     }
 
 public:
 
-    explicit TagsExpr() :
+    TagsExpr() :
         m_expr(new BoolValue) {
     }
 
     explicit TagsExpr(std::unique_ptr<ExprNode>&& expr) :
         m_expr(std::move(expr)) {
+        assert(m_expr);
     }
 
     explicit TagsExpr(ExprNode* expr) {
+        assert(m_expr);
         m_expr.reset(expr);
     }
 
@@ -1006,7 +1005,7 @@ public:
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
         return std::count_if(object.tags().cbegin(), object.tags().cend(), [this](const osmium::Tag& tag){
-            return m_expr->eval_bool(tag);
+            return expr()->eval_bool(tag);
         });
     }
 
@@ -1020,17 +1019,23 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "COUNT_NODES\n";
-        m_expr->print(out, level + 1);
+        expr()->print(out, level + 1);
     }
 
 public:
 
-    explicit NodesExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
+    NodesExpr() :
+        m_expr(new BoolValue) {
+    }
+
+    explicit NodesExpr(std::unique_ptr<ExprNode>&& expr) :
         m_expr(std::move(expr)) {
+        assert(m_expr);
     }
 
     explicit NodesExpr(ExprNode* expr) {
         m_expr.reset(expr);
+        assert(m_expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -1048,7 +1053,7 @@ public:
 
         const auto& nodes = static_cast<const osmium::Way&>(object).nodes();
         return std::count_if(nodes.cbegin(), nodes.cend(), [this](const osmium::NodeRef& nr){
-            return m_expr->eval_bool(nr);
+            return expr()->eval_bool(nr);
         });
     }
 
@@ -1067,16 +1072,22 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "COUNT_MEMBERS\n";
-        m_expr->print(out, level + 1);
+        expr()->print(out, level + 1);
     }
 
 public:
 
-    explicit MembersExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
+    MembersExpr() :
+        m_expr(new BoolValue) {
+    }
+
+    explicit MembersExpr(std::unique_ptr<ExprNode>&& expr) :
         m_expr(std::move(expr)) {
+        assert(m_expr);
     }
 
     explicit MembersExpr(ExprNode* expr) {
+        assert(m_expr);
         m_expr.reset(expr);
     }
 
@@ -1095,7 +1106,7 @@ public:
 
         const auto& members = static_cast<const osmium::Relation&>(object).members();
         return std::count_if(members.cbegin(), members.cend(), [this](const osmium::RelationMember& member){
-            return m_expr->eval_bool(member);
+            return expr()->eval_bool(member);
         });
     }
 
@@ -1146,7 +1157,9 @@ protected:
 
 public:
 
-    explicit CheckTagStrExpr(const std::string& key, const std::string& oper, const std::string& value) :
+    explicit CheckTagStrExpr(const std::string& key,
+                             const std::string& oper,
+                             const std::string& value) :
         m_key(key),
         m_oper(oper),
         m_value(value) {
@@ -1190,7 +1203,10 @@ protected:
 
 public:
 
-    explicit CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, const boost::optional<char>& ci) :
+    explicit CheckTagRegexExpr(const std::string& key,
+                               const std::string& oper,
+                               const std::string& value,
+                               const boost::optional<char>& ci) :
         m_key(key),
         m_oper(oper),
         m_value(value),
