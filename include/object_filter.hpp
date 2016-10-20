@@ -302,7 +302,7 @@ protected:
 
 public:
 
-    BoolValue(bool value = true) :
+    explicit BoolValue(bool value = true) :
         m_value(value) {
     }
 
@@ -336,11 +336,11 @@ protected:
 
 public:
 
-    WithSubExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
+    explicit WithSubExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
         m_children(std::move(children)) {
     }
 
-    WithSubExpr(const std::vector<ExprNode*>& children) {
+    explicit WithSubExpr(const std::vector<ExprNode*>& children) {
         for (auto* child : children) {
             m_children.emplace_back(child);
         }
@@ -375,11 +375,11 @@ protected:
 
 public:
 
-    AndExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
+    explicit AndExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
         WithSubExpr(std::move(children)) {
     }
 
-    AndExpr(const std::vector<ExprNode*>& children) :
+    explicit AndExpr(const std::vector<ExprNode*>& children) :
         WithSubExpr(children) {
     }
 
@@ -436,11 +436,11 @@ protected:
 
 public:
 
-    OrExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
+    explicit OrExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
         WithSubExpr(std::move(children)) {
     }
 
-    OrExpr(const std::vector<ExprNode*>& children) :
+    explicit OrExpr(const std::vector<ExprNode*>& children) :
         WithSubExpr(children) {
     }
 
@@ -489,12 +489,12 @@ protected:
 
 public:
 
-    NotExpr(std::unique_ptr<ExprNode>&& e) :
+    explicit NotExpr(std::unique_ptr<ExprNode>&& e) :
         m_child(std::move(e)) {
         assert(e);
     }
 
-    NotExpr(ExprNode* e) {
+    explicit NotExpr(ExprNode* e) {
         assert(e);
         m_child.reset(e);
     }
@@ -542,7 +542,7 @@ protected:
 
 public:
 
-    IntegerValue(std::int64_t value) :
+    explicit IntegerValue(std::int64_t value) :
         m_value(value) {
     }
 
@@ -584,7 +584,7 @@ protected:
 
 public:
 
-    StringValue(const std::string& value) :
+    explicit StringValue(const std::string& value) :
         m_value(value) {
     }
 
@@ -627,12 +627,12 @@ protected:
 
 public:
 
-    RegexValue(const std::regex& value) :
+    explicit RegexValue(const std::regex& value) :
         m_str("UNKNOWN"),
         m_value(value) {
     }
 
-    RegexValue(const std::string& value) :
+    explicit RegexValue(const std::string& value) :
         m_str(value),
         m_value(value) {
     }
@@ -659,7 +659,7 @@ protected:
 
 public:
 
-    CheckObjectTypeExpr(osmium::item_type type) :
+    explicit CheckObjectTypeExpr(osmium::item_type type) :
         m_type(type) {
     }
 
@@ -698,7 +698,7 @@ protected:
 
 public:
 
-    IntegerAttribute(integer_attribute_type attr) noexcept :
+    explicit IntegerAttribute(integer_attribute_type attr) noexcept :
         m_attribute(attr) {
     }
 
@@ -751,7 +751,7 @@ protected:
 
 public:
 
-    StringAttribute(string_attribute_type attr) noexcept :
+    explicit StringAttribute(string_attribute_type attr) noexcept :
         m_attribute(attr) {
     }
 
@@ -824,7 +824,7 @@ protected:
 
 public:
 
-    BinaryIntOperation(std::unique_ptr<ExprNode>&& lhs, integer_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
+    explicit BinaryIntOperation(std::unique_ptr<ExprNode>&& lhs, integer_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
         m_lhs(std::move(lhs)),
         m_rhs(std::move(rhs)),
         m_op(op) {
@@ -832,11 +832,11 @@ public:
         assert(rhs);
     }
 
-    BinaryIntOperation(const std::tuple<std::unique_ptr<ExprNode>&&, integer_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
+    explicit BinaryIntOperation(const std::tuple<std::unique_ptr<ExprNode>&&, integer_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
         BinaryIntOperation(std::move(std::get<0>(params)), std::get<1>(params), std::move(std::get<2>(params))) {
     }
 
-    BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept {
+    explicit BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept {
         m_lhs.reset(std::get<0>(params));
         m_op = std::get<1>(params);
         m_rhs.reset(std::get<2>(params));
@@ -917,7 +917,7 @@ protected:
 
 public:
 
-    BinaryStrOperation(std::unique_ptr<ExprNode>&& lhs, string_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
+    explicit BinaryStrOperation(std::unique_ptr<ExprNode>&& lhs, string_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
         m_lhs(std::move(lhs)),
         m_rhs(std::move(rhs)),
         m_op(op) {
@@ -925,11 +925,11 @@ public:
         assert(rhs);
     }
 
-    BinaryStrOperation(const std::tuple<std::unique_ptr<ExprNode>&&, string_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
+    explicit BinaryStrOperation(const std::tuple<std::unique_ptr<ExprNode>&&, string_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
         BinaryStrOperation(std::move(std::get<0>(params)), std::get<1>(params), std::move(std::get<2>(params))) {
     }
 
-    BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept {
+    explicit BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept {
         m_lhs.reset(std::get<0>(params));
         m_op = std::get<1>(params);
         m_rhs.reset(std::get<2>(params));
@@ -984,15 +984,15 @@ protected:
 
 public:
 
-    TagsExpr() :
+    explicit TagsExpr() :
         m_expr(new BoolValue) {
     }
 
-    TagsExpr(std::unique_ptr<ExprNode>&& expr) :
+    explicit TagsExpr(std::unique_ptr<ExprNode>&& expr) :
         m_expr(std::move(expr)) {
     }
 
-    TagsExpr(ExprNode* expr) {
+    explicit TagsExpr(ExprNode* expr) {
         m_expr.reset(expr);
     }
 
@@ -1025,11 +1025,11 @@ protected:
 
 public:
 
-    NodesExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
+    explicit NodesExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
         m_expr(std::move(expr)) {
     }
 
-    NodesExpr(ExprNode* expr) {
+    explicit NodesExpr(ExprNode* expr) {
         m_expr.reset(expr);
     }
 
@@ -1072,11 +1072,11 @@ protected:
 
 public:
 
-    MembersExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
+    explicit MembersExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
         m_expr(std::move(expr)) {
     }
 
-    MembersExpr(ExprNode* expr) {
+    explicit MembersExpr(ExprNode* expr) {
         m_expr.reset(expr);
     }
 
@@ -1118,7 +1118,7 @@ protected:
 
 public:
 
-    CheckHasKeyExpr(const std::string& str) :
+    explicit CheckHasKeyExpr(const std::string& str) :
         m_key(str) {
     }
 
@@ -1146,13 +1146,13 @@ protected:
 
 public:
 
-    CheckTagStrExpr(const std::string& key, const std::string& oper, const std::string& value) :
+    explicit CheckTagStrExpr(const std::string& key, const std::string& oper, const std::string& value) :
         m_key(key),
         m_oper(oper),
         m_value(value) {
     }
 
-    CheckTagStrExpr(const std::tuple<std::string, std::string, std::string>& params) :
+    explicit CheckTagStrExpr(const std::tuple<std::string, std::string, std::string>& params) :
         CheckTagStrExpr(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
     }
 
@@ -1190,7 +1190,7 @@ protected:
 
 public:
 
-    CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, const boost::optional<char>& ci) :
+    explicit CheckTagRegexExpr(const std::string& key, const std::string& oper, const std::string& value, const boost::optional<char>& ci) :
         m_key(key),
         m_oper(oper),
         m_value(value),
@@ -1203,7 +1203,7 @@ public:
         m_value_regex = std::regex{m_value, options};
     }
 
-    CheckTagRegexExpr(const std::tuple<std::string, std::string, std::string, boost::optional<char>>& params) :
+    explicit CheckTagRegexExpr(const std::tuple<std::string, std::string, std::string, boost::optional<char>>& params) :
         CheckTagRegexExpr(std::get<0>(params), std::get<1>(params), std::get<2>(params), std::get<3>(params)) {
     }
 
@@ -1236,7 +1236,7 @@ class OSMObjectFilter {
 
 public:
 
-    OSMObjectFilter(std::string& input);
+    explicit OSMObjectFilter(std::string& input);
 
     const ExprNode* root() const noexcept {
         return m_root.get();
