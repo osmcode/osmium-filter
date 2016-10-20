@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -1295,6 +1296,17 @@ public:
         m_values(std::get<1>(params)) {
         m_attr.reset(std::get<0>(params));
         assert(m_attr);
+    }
+
+    explicit InIntegerList(const std::tuple<ExprNode*, std::string>& params) {
+        m_attr.reset(std::get<0>(params));
+        assert(m_attr);
+
+        std::int64_t i;
+        std::ifstream input{std::get<1>(params)};
+        while (input >> i) {
+            m_values.push_back(i);
+        }
     }
 
     expr_node_type expression_type() const noexcept override final {
