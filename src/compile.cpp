@@ -296,8 +296,8 @@ NativeJIT::Node<bool>& CompiledFilter::check_has_key(const CheckHasKeyExpr* e) {
 
 NativeJIT::Node<bool>& CompiledFilter::check_tag_str(const CheckTagStrExpr* e) {
     auto& func = m_expression.Immediate(
-        e->oper()[0] == '!' ? detail::check_tag_not_equals
-                            : detail::check_tag_equals
+        e->op() == string_op_type::equal ? detail::check_tag_equals
+                                         : detail::check_tag_not_equals
     );
 
     return m_expression.Call(func,
@@ -309,8 +309,8 @@ NativeJIT::Node<bool>& CompiledFilter::check_tag_str(const CheckTagStrExpr* e) {
 
 NativeJIT::Node<bool>& CompiledFilter::check_tag_regex(const CheckTagRegexExpr* e) {
     auto& func = m_expression.Immediate(
-        e->oper()[0] == '!' ? detail::check_tag_not_match
-                            : detail::check_tag_match
+        e->op() == string_op_type::match ? detail::check_tag_match
+                                         : detail::check_tag_not_match
     );
 
     return m_expression.Call(func,

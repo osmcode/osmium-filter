@@ -1127,7 +1127,7 @@ class CheckHasKeyExpr : public BoolExpression {
 protected:
 
     void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "HAS_KEY \"" << m_key << "\"\n";
+        out << "HAS_KEY[" << m_key << "]\n";
     }
 
 public:
@@ -1153,26 +1153,26 @@ public:
 class CheckTagStrExpr : public BoolExpression {
 
     std::string m_key;
-    std::string m_oper;
     std::string m_value;
+    string_op_type m_op;
 
 protected:
 
     void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " \"" << m_value << "\"\n";
+        out << "CHECK_TAG[" << m_key << "][" << operator_name(m_op) << "][" << m_value << "]\n";
     }
 
 public:
 
     explicit CheckTagStrExpr(const std::string& key,
-                             const std::string& oper,
+                             string_op_type op,
                              const std::string& value) :
         m_key(key),
-        m_oper(oper),
-        m_value(value) {
+        m_value(value),
+        m_op(op) {
     }
 
-    explicit CheckTagStrExpr(const std::tuple<std::string, std::string, std::string>& params) :
+    explicit CheckTagStrExpr(const std::tuple<std::string, string_op_type, std::string>& params) :
         CheckTagStrExpr(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
     }
 
@@ -1184,8 +1184,8 @@ public:
         return m_key.c_str();
     }
 
-    const char* oper() const noexcept {
-        return m_oper.c_str();
+    string_op_type op() const noexcept {
+        return m_op;
     }
 
     const char* value() const noexcept {
@@ -1198,7 +1198,7 @@ public:
             return false;
         }
         const bool has_tag = !std::strcmp(tag_value, value());
-        return m_oper[0] == '!' ? !has_tag : has_tag;
+        return m_op == string_op_type::equal ? has_tag : !has_tag;
     }
 
 }; // class CheckTagStrExpr
@@ -1206,27 +1206,27 @@ public:
 class CheckTagRegexExpr : public BoolExpression {
 
     std::string m_key;
-    std::string m_oper;
     std::string m_value;
     std::regex m_value_regex;
+    string_op_type m_op;
     bool m_case_insensitive;
 
 protected:
 
     void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CHECK_TAG \"" << m_key << "\" " << m_oper << " /" << m_value << "/" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "\n";
+        out << "CHECK_TAG[" << m_key << "][" << operator_name(m_op) << "][" << m_value << "][" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "]\n";
     }
 
 public:
 
     explicit CheckTagRegexExpr(const std::string& key,
-                               const std::string& oper,
+                               string_op_type op,
                                const std::string& value,
                                const boost::optional<char>& ci) :
         m_key(key),
-        m_oper(oper),
         m_value(value),
         m_value_regex(),
+        m_op(op),
         m_case_insensitive(ci == 'i') {
         auto options = std::regex::nosubs | std::regex::optimize;
         if (m_case_insensitive) {
@@ -1235,7 +1235,7 @@ public:
         m_value_regex = std::regex{m_value, options};
     }
 
-    explicit CheckTagRegexExpr(const std::tuple<std::string, std::string, std::string, boost::optional<char>>& params) :
+    explicit CheckTagRegexExpr(const std::tuple<std::string, string_op_type, std::string, boost::optional<char>>& params) :
         CheckTagRegexExpr(std::get<0>(params), std::get<1>(params), std::get<2>(params), std::get<3>(params)) {
     }
 
@@ -1247,8 +1247,8 @@ public:
         return m_key.c_str();
     }
 
-    const char* oper() const noexcept {
-        return m_oper.c_str();
+    string_op_type op() const noexcept {
+        return m_op;
     }
 
     const std::regex* value_regex() const noexcept {
@@ -1265,7 +1265,7 @@ public:
             return false;
         }
         const bool has_tag = std::regex_search(tag_value, m_value_regex);
-        return m_oper[0] == '!' ? !has_tag : has_tag;
+        return m_op == string_op_type::match ? has_tag : !has_tag;
     }
 
 }; // class CheckTagRegexExpr

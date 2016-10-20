@@ -36,7 +36,7 @@ way and not highway
 
 highway ~ "_link$"
 
-highway=~"_link$"i
+#highway=~"_link$"i
 
 name_1
 

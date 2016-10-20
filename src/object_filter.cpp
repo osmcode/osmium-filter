@@ -67,13 +67,13 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
     rs<ExprNode*()> expression, paren_expression, factor, tag, primitive, key, attr, term, int_value, attr_int, str_value, regex_value, attr_str;
     rs<ExprNode*()> subexpression, tags_expr, nodes_expr, members_expr, subexpr_int;
-    rs<std::string()> single_q_str, double_q_str, plain_string, string, oper_str_old, oper_regex_old;
+    rs<std::string()> single_q_str, double_q_str, plain_string, string;
     rs<osmium::item_type()> object_type, attr_type;
     rs<integer_op_type> oper_int;
     rs<string_op_type> oper_str;
     rs<string_op_type> oper_regex;
-    rs<std::tuple<std::string, std::string, std::string>()> key_oper_str_value;
-    rs<std::tuple<std::string, std::string, std::string, boost::optional<char>>()> key_oper_regex_value;
+    rs<std::tuple<std::string, string_op_type, std::string>()> key_oper_str_value;
+    rs<std::tuple<std::string, string_op_type, std::string, boost::optional<char>>()> key_oper_regex_value;
     rs<std::tuple<ExprNode*, integer_op_type, ExprNode*>()> binary_int_oper;
     rs<std::tuple<ExprNode*, string_op_type, ExprNode*>()> binary_str_oper;
 
@@ -113,11 +113,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         oper_int.name("integer comparison operand");
 
         // operator for simple string comparison
-        oper_str_old       = ascii::string("=")
-                       | ascii::string("!=");
-        oper_str_old.name("string comparison operand");
-
-        // operator for simple string comparison
         oper_str       = (qi::lit("=")  > qi::attr(string_op_type::equal))
                        | (qi::lit("!=") > qi::attr(string_op_type::not_equal));
         oper_str.name("string comparison operand");
@@ -127,24 +122,18 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | (qi::lit("!~") > qi::attr(string_op_type::not_match));
         oper_regex.name("string regex comparison operand");
 
-        // operator for regex string comparison
-        oper_regex_old     = ascii::string("~")
-                       | ascii::string("=~")
-                       | ascii::string("!~");
-        oper_regex_old.name("string comparison operand");
-
         // a tag key
         key            = string[qi::_val = boost::phoenix::new_<CheckHasKeyExpr>(qi::_1)];
         key.name("tag key");
 
         // a tag (key operator value)
         key_oper_str_value =  string
-                           >> oper_str_old
+                           >> oper_str
                            >> string;
         key_oper_str_value.name("key_oper_str_value");
 
         key_oper_regex_value =  string
-                             >> oper_regex_old
+                             >> oper_regex
                              >> string
                              >> -ascii::char_('i');
         key_oper_regex_value.name("key_oper_regex_value");
