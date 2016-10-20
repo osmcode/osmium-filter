@@ -133,7 +133,7 @@ protected:
 
 public:
 
-    constexpr ExprNode() = default;
+    ExprNode() = default;
 
     virtual ~ExprNode() {
     }
@@ -302,7 +302,7 @@ protected:
 
 public:
 
-    constexpr BoolValue(bool value = true) :
+    BoolValue(bool value = true) :
         m_value(value) {
     }
 
@@ -332,15 +332,21 @@ class WithSubExpr : public BoolExpression {
 
 protected:
 
-    std::vector<ExprNode*> m_children;
+    std::vector<std::unique_ptr<ExprNode>> m_children;
 
 public:
 
-    WithSubExpr(std::vector<ExprNode*> children) :
-        m_children(children) {
+    WithSubExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
+        m_children(std::move(children)) {
     }
 
-    const std::vector<ExprNode*>& children() const noexcept {
+    WithSubExpr(const std::vector<ExprNode*>& children) {
+        for (auto* child : children) {
+            m_children.emplace_back(child);
+        }
+    }
+
+    const std::vector<std::unique_ptr<ExprNode>>& children() const noexcept {
         return m_children;
     }
 
@@ -350,7 +356,7 @@ class AndExpr : public WithSubExpr {
 
     template <typename T>
     bool eval_bool_impl(const T& t) const {
-        const auto it = std::find_if(children().cbegin(), children().cend(), [&t](const ExprNode* e){
+        const auto it = std::find_if(children().cbegin(), children().cend(), [&t](const std::unique_ptr<ExprNode>& e){
             return !e->eval_bool(t);
         });
 
@@ -361,7 +367,7 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_AND\n";
-        for (const auto* child : m_children) {
+        for (const auto& child : m_children) {
             assert(child);
             child->print(out, level + 1);
         }
@@ -369,7 +375,11 @@ protected:
 
 public:
 
-    AndExpr(std::vector<ExprNode*> children) :
+    AndExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
+        WithSubExpr(std::move(children)) {
+    }
+
+    AndExpr(const std::vector<ExprNode*>& children) :
         WithSubExpr(children) {
     }
 
@@ -379,7 +389,7 @@ public:
 
     entity_bits_pair calc_entities() const noexcept override final {
         const auto bits = std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
-        return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
+        return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const std::unique_ptr<ExprNode>& e) {
             const auto x = e->calc_entities();
             return std::make_pair(b.first & x.first, b.second & x.second);
         });
@@ -407,7 +417,7 @@ class OrExpr : public WithSubExpr {
 
     template <typename T>
     bool eval_bool_impl(const T& t) const {
-        const auto it = std::find_if(children().cbegin(), children().cend(), [&t](const ExprNode* e){
+        const auto it = std::find_if(children().cbegin(), children().cend(), [&t](const std::unique_ptr<ExprNode>& e){
             return e->eval_bool(t);
         });
 
@@ -418,7 +428,7 @@ protected:
 
     void do_print(std::ostream& out, int level) const override final {
         out << "BOOL_OR\n";
-        for (const auto* child : m_children) {
+        for (const auto& child : m_children) {
             assert(child);
             child->print(out, level + 1);
         }
@@ -426,7 +436,11 @@ protected:
 
 public:
 
-    OrExpr(std::vector<ExprNode*> children) :
+    OrExpr(std::vector<std::unique_ptr<ExprNode>>&& children) :
+        WithSubExpr(std::move(children)) {
+    }
+
+    OrExpr(const std::vector<ExprNode*>& children) :
         WithSubExpr(children) {
     }
 
@@ -436,7 +450,7 @@ public:
 
     entity_bits_pair calc_entities() const noexcept override final {
         const auto bits = std::make_pair(osmium::osm_entity_bits::nothing, osmium::osm_entity_bits::nothing);
-        return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const ExprNode* e) {
+        return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const std::unique_ptr<ExprNode>& e) {
             assert(e);
             const auto x = e->calc_entities();
             return std::make_pair(b.first | x.first, b.second | x.second);
@@ -463,7 +477,7 @@ public:
 
 class NotExpr : public BoolExpression {
 
-    ExprNode* m_child;
+    std::unique_ptr<ExprNode> m_child;
 
 protected:
 
@@ -475,9 +489,14 @@ protected:
 
 public:
 
-    constexpr NotExpr(ExprNode* e) :
-        m_child(e) {
+    NotExpr(std::unique_ptr<ExprNode>&& e) :
+        m_child(std::move(e)) {
         assert(e);
+    }
+
+    NotExpr(ExprNode* e) {
+        assert(e);
+        m_child.reset(e);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -485,7 +504,7 @@ public:
     }
 
     const ExprNode* child() const noexcept {
-        return m_child;
+        return m_child.get();
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
@@ -523,7 +542,7 @@ protected:
 
 public:
 
-    constexpr IntegerValue(std::int64_t value) :
+    IntegerValue(std::int64_t value) :
         m_value(value) {
     }
 
@@ -770,8 +789,8 @@ public:
 
 class BinaryIntOperation : public BoolExpression {
 
-    ExprNode* m_lhs;
-    ExprNode* m_rhs;
+    std::unique_ptr<ExprNode> m_lhs;
+    std::unique_ptr<ExprNode> m_rhs;
     integer_op_type m_op;
 
     bool compare(std::int64_t lhs, std::int64_t rhs) const {
@@ -805,16 +824,22 @@ protected:
 
 public:
 
-    constexpr BinaryIntOperation(ExprNode* lhs, integer_op_type op, ExprNode* rhs) noexcept :
-        m_lhs(lhs),
-        m_rhs(rhs),
+    BinaryIntOperation(std::unique_ptr<ExprNode>&& lhs, integer_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
+        m_lhs(std::move(lhs)),
+        m_rhs(std::move(rhs)),
         m_op(op) {
         assert(lhs);
         assert(rhs);
     }
 
-    constexpr BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept :
-        BinaryIntOperation(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
+    BinaryIntOperation(const std::tuple<std::unique_ptr<ExprNode>&&, integer_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
+        BinaryIntOperation(std::move(std::get<0>(params)), std::get<1>(params), std::move(std::get<2>(params))) {
+    }
+
+    BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept {
+        m_lhs.reset(std::get<0>(params));
+        m_op = std::get<1>(params);
+        m_rhs.reset(std::get<2>(params));
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -832,11 +857,11 @@ public:
     }
 
     ExprNode* lhs() const noexcept {
-        return m_lhs;
+        return m_lhs.get();
     }
 
     ExprNode* rhs() const noexcept {
-        return m_rhs;
+        return m_rhs.get();
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
@@ -858,8 +883,8 @@ public:
 
 class BinaryStrOperation : public BoolExpression {
 
-    ExprNode* m_lhs;
-    ExprNode* m_rhs;
+    std::unique_ptr<ExprNode> m_lhs;
+    std::unique_ptr<ExprNode> m_rhs;
     string_op_type m_op;
 
     template <typename T>
@@ -872,9 +897,9 @@ class BinaryStrOperation : public BoolExpression {
             case string_op_type::not_equal:
                 return std::strcmp(value, m_rhs->eval_string(t));
             case string_op_type::match:
-                return std::regex_search(value, *(dynamic_cast<RegexValue*>(m_rhs)->value()));
+                return std::regex_search(value, *(dynamic_cast<RegexValue*>(rhs())->value()));
             case string_op_type::not_match:
-                return !std::regex_search(value, *(dynamic_cast<RegexValue*>(m_rhs)->value()));
+                return !std::regex_search(value, *(dynamic_cast<RegexValue*>(rhs())->value()));
             default:
                 break;
         }
@@ -892,16 +917,22 @@ protected:
 
 public:
 
-    constexpr BinaryStrOperation(ExprNode* lhs, string_op_type op, ExprNode* rhs) noexcept :
-        m_lhs(lhs),
-        m_rhs(rhs),
+    BinaryStrOperation(std::unique_ptr<ExprNode>&& lhs, string_op_type op, std::unique_ptr<ExprNode>&& rhs) noexcept :
+        m_lhs(std::move(lhs)),
+        m_rhs(std::move(rhs)),
         m_op(op) {
         assert(lhs);
         assert(rhs);
     }
 
-    constexpr BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept :
-        BinaryStrOperation(std::get<0>(params), std::get<1>(params), std::get<2>(params)) {
+    BinaryStrOperation(const std::tuple<std::unique_ptr<ExprNode>&&, string_op_type, std::unique_ptr<ExprNode>&&>& params) noexcept :
+        BinaryStrOperation(std::move(std::get<0>(params)), std::get<1>(params), std::move(std::get<2>(params))) {
+    }
+
+    BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept {
+        m_lhs.reset(std::get<0>(params));
+        m_op = std::get<1>(params);
+        m_rhs.reset(std::get<2>(params));
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -919,11 +950,11 @@ public:
     }
 
     ExprNode* lhs() const noexcept {
-        return m_lhs;
+        return m_lhs.get();
     }
 
     ExprNode* rhs() const noexcept {
-        return m_rhs;
+        return m_rhs.get();
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
@@ -942,7 +973,7 @@ public:
 
 class TagsExpr : public IntegerExpression {
 
-    ExprNode* m_expr;
+    std::unique_ptr<ExprNode> m_expr;
 
 protected:
 
@@ -953,8 +984,16 @@ protected:
 
 public:
 
-    TagsExpr(ExprNode* expr = new BoolValue(true)) :
-        m_expr(expr) {
+    TagsExpr() :
+        m_expr(new BoolValue) {
+    }
+
+    TagsExpr(std::unique_ptr<ExprNode>&& expr) :
+        m_expr(std::move(expr)) {
+    }
+
+    TagsExpr(ExprNode* expr) {
+        m_expr.reset(expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -962,7 +1001,7 @@ public:
     }
 
     ExprNode* expr() const noexcept {
-        return m_expr;
+        return m_expr.get();
     }
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
@@ -975,7 +1014,7 @@ public:
 
 class NodesExpr : public IntegerExpression {
 
-    ExprNode* m_expr;
+    std::unique_ptr<ExprNode> m_expr;
 
 protected:
 
@@ -986,8 +1025,12 @@ protected:
 
 public:
 
-    NodesExpr(ExprNode* expr = new BoolValue(true)) :
-        m_expr(expr) {
+    NodesExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
+        m_expr(std::move(expr)) {
+    }
+
+    NodesExpr(ExprNode* expr) {
+        m_expr.reset(expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -995,7 +1038,7 @@ public:
     }
 
     ExprNode* expr() const noexcept {
-        return m_expr;
+        return m_expr.get();
     }
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
@@ -1018,7 +1061,7 @@ public:
 
 class MembersExpr : public IntegerExpression {
 
-    ExprNode* m_expr;
+    std::unique_ptr<ExprNode> m_expr;
 
 protected:
 
@@ -1029,8 +1072,12 @@ protected:
 
 public:
 
-    MembersExpr(ExprNode* expr = new BoolValue(true)) :
-        m_expr(expr) {
+    MembersExpr(std::unique_ptr<ExprNode>&& expr = std::unique_ptr<ExprNode>(new BoolValue)) :
+        m_expr(std::move(expr)) {
+    }
+
+    MembersExpr(ExprNode* expr) {
+        m_expr.reset(expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -1038,7 +1085,7 @@ public:
     }
 
     ExprNode* expr() const noexcept {
-        return m_expr;
+        return m_expr.get();
     }
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
@@ -1185,14 +1232,14 @@ public:
 
 class OSMObjectFilter {
 
-    ExprNode* m_root = new BoolValue{true};
+    std::unique_ptr<ExprNode> m_root = std::unique_ptr<ExprNode>(new BoolValue);
 
 public:
 
     OSMObjectFilter(std::string& input);
 
     const ExprNode* root() const noexcept {
-        return m_root;
+        return m_root.get();
     }
 
     void print_tree(std::ostream& out) const {

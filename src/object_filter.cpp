@@ -247,6 +247,7 @@ OSMObjectFilter::OSMObjectFilter(std::string& input) {
 
     OSMObjectFilterGrammar<std::string::iterator> grammar;
 
+    ExprNode* root = nullptr;
     auto first = input.begin();
     auto last = input.end();
     const bool result = qi::phrase_parse(
@@ -254,13 +255,14 @@ OSMObjectFilter::OSMObjectFilter(std::string& input) {
         last,
         grammar,
         skip,
-        m_root
+        root
     );
 
     if (!result || first != last) {
         throw std::runtime_error{"Can not parse expression"};
     }
 
-    assert(m_root);
+    assert(root);
+    m_root.reset(root);
 }
 

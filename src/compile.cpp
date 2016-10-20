@@ -87,13 +87,13 @@ NativeJIT::Node<bool>& CompiledFilter::compile_and(const AndExpr* e) {
     assert(e->children().size() >= 2);
     auto f = e->children().begin();
     auto l = e->children().end();
-    const auto* e1 = *f;
+    const auto* e1 = f->get();
     ++f;
-    const auto* e2 = *f;
+    const auto* e2 = f->get();
     ++f;
     auto and_expression = &m_expression.And(compile_bool(e1), compile_bool(e2));
-    return *std::accumulate(f, l, and_expression, [this](NativeJIT::Node<bool>* and_expr, const ExprNode* expr) {
-        return &m_expression.And(*and_expr, compile_bool(expr));
+    return *std::accumulate(f, l, and_expression, [this](NativeJIT::Node<bool>* and_expr, const std::unique_ptr<ExprNode>& expr) {
+        return &m_expression.And(*and_expr, compile_bool(expr.get()));
     });
 }
 
@@ -101,13 +101,13 @@ NativeJIT::Node<bool>& CompiledFilter::compile_or(const OrExpr* e) {
     assert(e->children().size() >= 2);
     auto f = e->children().begin();
     auto l = e->children().end();
-    const auto* e1 = *f;
+    const auto* e1 = f->get();
     ++f;
-    const auto* e2 = *f;
+    const auto* e2 = f->get();
     ++f;
     auto or_expression = &m_expression.Or(compile_bool(e1), compile_bool(e2));
-    return *std::accumulate(f, l, or_expression, [this](NativeJIT::Node<bool>* or_expr, const ExprNode* expr) {
-        return &m_expression.Or(*or_expr, compile_bool(expr));
+    return *std::accumulate(f, l, or_expression, [this](NativeJIT::Node<bool>* or_expr, const std::unique_ptr<ExprNode>& expr) {
+        return &m_expression.Or(*or_expr, compile_bool(expr.get()));
     });
 }
 
