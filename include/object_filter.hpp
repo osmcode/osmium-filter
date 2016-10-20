@@ -119,6 +119,7 @@ enum class expr_node_type : int {
     tags_expr,
     nodes_expr,
     members_expr,
+    in_integer_list,
     check_has_type,
     check_has_key,
     check_tag_str,
@@ -1269,6 +1270,43 @@ public:
     }
 
 }; // class CheckTagRegexExpr
+
+class InIntegerList : public BoolExpression {
+
+    std::unique_ptr<ExprNode> m_attr;
+    std::vector<std::int64_t> m_values;
+
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "IN_INT_LIST[...]\n";
+    }
+
+public:
+
+    explicit InIntegerList(std::unique_ptr<ExprNode>& attr, const std::vector<std::int64_t>& values) :
+        m_attr(std::move(attr)),
+        m_values(values) {
+        assert(m_attr);
+        std::sort(m_values.begin(), m_values.end());
+    }
+
+    explicit InIntegerList(const std::tuple<ExprNode*, std::vector<std::int64_t>>& params) :
+        m_values(std::get<1>(params)) {
+        m_attr.reset(std::get<0>(params));
+        assert(m_attr);
+    }
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::in_integer_list;
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        std::int64_t value = m_attr->eval_int(object);
+        return std::find(m_values.cbegin(), m_values.cend(), value) != m_values.cend();
+    }
+
+}; // class InIntegerList
 
 
 class OSMObjectFilter {

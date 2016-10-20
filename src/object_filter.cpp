@@ -69,6 +69,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<ExprNode*()> subexpression, tags_expr, nodes_expr, members_expr, subexpr_int;
     rs<std::string()> single_q_str, double_q_str, plain_string, string;
     rs<osmium::item_type()> object_type, attr_type;
+    rs<std::vector<std::int64_t>()> int_list_value;
+    rs<std::tuple<ExprNode*, std::vector<std::int64_t>>()> in_int_list_value;
     rs<integer_op_type> oper_int;
     rs<string_op_type> oper_str;
     rs<string_op_type> oper_regex;
@@ -179,6 +181,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         regex_value      = string[qi::_val = boost::phoenix::new_<RegexValue>(qi::_1)];
         regex_value.name("regex value");
 
+        int_list_value = qi::lit("(") >> (qi::int_parser<std::int64_t>() % qi::lit(",")) >> qi::lit(")");
+
+        in_int_list_value = attr_int >> qi::lit("in") >> int_list_value;
+
         subexpr_int    = tags_expr[qi::_val = boost::phoenix::new_<TagsExpr>(qi::_1)]
                        | nodes_expr[qi::_val = boost::phoenix::new_<NodesExpr>(qi::_1)]
                        | members_expr[qi::_val = boost::phoenix::new_<MembersExpr>(qi::_1)];
@@ -208,7 +214,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         // attribute expression
         attr           = attr_type[qi::_val = boost::phoenix::new_<CheckObjectTypeExpr>(qi::_1)]
                        | binary_int_oper[qi::_val = boost::phoenix::new_<BinaryIntOperation>(qi::_1)]
-                       | binary_str_oper[qi::_val = boost::phoenix::new_<BinaryStrOperation>(qi::_1)];
+                       | binary_str_oper[qi::_val = boost::phoenix::new_<BinaryStrOperation>(qi::_1)]
+                       | in_int_list_value[qi::_val = boost::phoenix::new_<InIntegerList>(qi::_1)];
         attr.name("attr");
 
         // primitive expression
