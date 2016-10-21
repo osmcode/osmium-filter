@@ -17,6 +17,7 @@
 #include <boost/optional.hpp>
 #include <boost/variant.hpp>
 
+#include <osmium/index/id_set.hpp>
 #include <osmium/osm/entity_bits.hpp>
 #include <osmium/osm/item_type.hpp>
 #include <osmium/osm/node.hpp>
@@ -1275,7 +1276,7 @@ public:
 class InIntegerList : public BoolExpression {
 
     std::unique_ptr<ExprNode> m_attr;
-    std::vector<std::int64_t> m_values;
+    osmium::index::IdSet<std::uint64_t> m_values;
 
 protected:
 
@@ -1286,26 +1287,29 @@ protected:
 public:
 
     explicit InIntegerList(std::unique_ptr<ExprNode>& attr, const std::vector<std::int64_t>& values) :
-        m_attr(std::move(attr)),
-        m_values(values) {
+        m_attr(std::move(attr)) {
         assert(m_attr);
-        std::sort(m_values.begin(), m_values.end());
+        for (auto value : values) {
+            m_values.set(std::uint64_t(value));
+        }
     }
 
-    explicit InIntegerList(const std::tuple<ExprNode*, std::vector<std::int64_t>>& params) :
-        m_values(std::get<1>(params)) {
+    explicit InIntegerList(const std::tuple<ExprNode*, std::vector<std::int64_t>>& params) {
         m_attr.reset(std::get<0>(params));
         assert(m_attr);
+        for (auto value : std::get<1>(params)) {
+            m_values.set(std::uint64_t(value));
+        }
     }
 
     explicit InIntegerList(const std::tuple<ExprNode*, std::string>& params) {
         m_attr.reset(std::get<0>(params));
         assert(m_attr);
 
-        std::int64_t i;
+        std::uint64_t value;
         std::ifstream input{std::get<1>(params)};
-        while (input >> i) {
-            m_values.push_back(i);
+        while (input >> value) {
+            m_values.set(value);
         }
     }
 
@@ -1315,7 +1319,7 @@ public:
 
     bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
         std::int64_t value = m_attr->eval_int(object);
-        return std::find(m_values.cbegin(), m_values.cend(), value) != m_values.cend();
+        return m_values.get(std::uint64_t(value));
     }
 
 }; // class InIntegerList
