@@ -1276,7 +1276,7 @@ public:
 class InIntegerList : public BoolExpression {
 
     std::unique_ptr<ExprNode> m_attr;
-    osmium::index::IdSet<std::uint64_t> m_values;
+    std::unique_ptr<osmium::index::IdSet<std::uint64_t>> m_values;
 
 protected:
 
@@ -1287,29 +1287,32 @@ protected:
 public:
 
     explicit InIntegerList(std::unique_ptr<ExprNode>& attr, const std::vector<std::int64_t>& values) :
-        m_attr(std::move(attr)) {
+        m_attr(std::move(attr)),
+        m_values(new osmium::index::IdSetSmall<std::uint64_t>) {
         assert(m_attr);
         for (auto value : values) {
-            m_values.set(std::uint64_t(value));
+            m_values->set(std::uint64_t(value));
         }
     }
 
-    explicit InIntegerList(const std::tuple<ExprNode*, std::vector<std::int64_t>>& params) {
-        m_attr.reset(std::get<0>(params));
+    explicit InIntegerList(const std::tuple<ExprNode*, std::vector<std::int64_t>>& params) :
+        m_attr(std::get<0>(params)),
+        m_values(new osmium::index::IdSetSmall<std::uint64_t>) {
         assert(m_attr);
         for (auto value : std::get<1>(params)) {
-            m_values.set(std::uint64_t(value));
+            m_values->set(std::uint64_t(value));
         }
     }
 
-    explicit InIntegerList(const std::tuple<ExprNode*, std::string>& params) {
-        m_attr.reset(std::get<0>(params));
+    explicit InIntegerList(const std::tuple<ExprNode*, std::string>& params) :
+        m_attr(std::get<0>(params)),
+        m_values(new osmium::index::IdSetDense<std::uint64_t>) {
         assert(m_attr);
 
         std::uint64_t value;
         std::ifstream input{std::get<1>(params)};
         while (input >> value) {
-            m_values.set(value);
+            m_values->set(value);
         }
     }
 
@@ -1319,7 +1322,7 @@ public:
 
     bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
         std::int64_t value = m_attr->eval_int(object);
-        return m_values.get(std::uint64_t(value));
+        return m_values->get(std::uint64_t(value));
     }
 
 }; // class InIntegerList
