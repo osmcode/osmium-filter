@@ -55,7 +55,7 @@ public:
         m_function = m_expression.Compile(compile_bool(filter.root()));
     }
 
-    bool match(osmium::OSMObject& object) {
+    bool match(const osmium::OSMObject& object) {
         return m_function(object);
     }
 

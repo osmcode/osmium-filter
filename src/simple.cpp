@@ -1,11 +1,13 @@
 
 #include <boost/program_options.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <streambuf>
 #include <string>
+#include <vector>
 
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
@@ -139,12 +141,12 @@ int main(int argc, char* argv[]) {
         {
             osmium::io::Reader reader{input_filename, filter.entities()};
             while (osmium::memory::Buffer buffer = reader.read()) {
-                for (auto& object : buffer.select<osmium::OSMObject>()) {
+                for (const auto& object : buffer.select<osmium::OSMObject>()) {
                     if (filter.match(object)) {
-                        int idx = int(object.type()) - 1;
+                        const int idx = int(object.type()) - 1;
                         ids[idx].push_back(object.id());
                         if (object.type() == osmium::item_type::way) {
-                            for (auto& nr : static_cast<osmium::Way&>(object).nodes()) {
+                            for (const auto& nr : static_cast<const osmium::Way&>(object).nodes()) {
                                 ids[0].push_back(nr.ref());
                             }
                         }
@@ -155,8 +157,8 @@ int main(int argc, char* argv[]) {
         }
 
         for (int i = 0; i < 3; ++i) {
-            sort(ids[i].begin(), ids[i].end());
-            auto last = std::unique(ids[i].begin(), ids[i].end());
+            std::sort(ids[i].begin(), ids[i].end());
+            const auto last = std::unique(ids[i].begin(), ids[i].end());
             ids[i].erase(last, ids[i].end());
         }
 
@@ -168,9 +170,9 @@ int main(int argc, char* argv[]) {
         osmium::ProgressBar progress_bar{reader.file_size(), true};
         while (osmium::memory::Buffer buffer = reader.read()) {
             progress_bar.update(reader.offset());
-            for (auto& object : buffer.select<osmium::OSMObject>()) {
-                int idx = int(object.type()) - 1;
-                auto lb = std::lower_bound(ids[idx].begin(), ids[idx].end(), object.id());
+            for (const auto& object : buffer.select<osmium::OSMObject>()) {
+                const int idx = int(object.type()) - 1;
+                const auto lb = std::lower_bound(ids[idx].begin(), ids[idx].end(), object.id());
                 if (lb != ids[idx].end() && *lb == object.id()) {
                     writer(object);
                 }
@@ -189,7 +191,7 @@ int main(int argc, char* argv[]) {
         osmium::ProgressBar progress_bar{reader.file_size(), true};
         while (osmium::memory::Buffer buffer = reader.read()) {
             progress_bar.update(reader.offset());
-            for (auto& object : buffer.select<osmium::OSMObject>()) {
+            for (const auto& object : buffer.select<osmium::OSMObject>()) {
                 if (filter.match(object)) {
                     writer(object);
                 }
