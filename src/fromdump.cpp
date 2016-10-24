@@ -144,35 +144,24 @@ int main(int argc, char* argv[]) {
     CompiledFilter cfilter{filter};
 
     if (complete_ways) {
-        std::vector<osmium::object_id_type> ids[3];
+        osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
 
         for (const auto& object : buffer.select<osmium::OSMObject>()) {
             if (cfilter.match(object)) {
-                const int idx = int(object.type()) - 1;
-                ids[idx].push_back(object.id());
+                ids(object.type()).set(object.positive_id());
                 if (object.type() == osmium::item_type::way) {
                     for (const auto& nr : static_cast<const osmium::Way&>(object).nodes()) {
-                        ids[0].push_back(nr.ref());
+                        ids(osmium::item_type::node).set(nr.positive_ref());
                     }
                 }
             }
         }
 
-        for (int i = 0; i < 3; ++i) {
-            std::sort(ids[i].begin(), ids[i].end());
-            const auto last = std::unique(ids[i].begin(), ids[i].end());
-            ids[i].erase(last, ids[i].end());
-        }
-
-        std::cerr << "IDS: n=" << ids[0].size() << " w=" << ids[1].size() << " r=" << ids[2].size() << "\n";
-
         osmium::io::File output_file{output_filename, output_format};
         osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
 
         for (const auto& object : buffer.select<osmium::OSMObject>()) {
-            const int idx = int(object.type()) - 1;
-            const auto lb = std::lower_bound(ids[idx].begin(), ids[idx].end(), object.id());
-            if (lb != ids[idx].end() && *lb == object.id()) {
+            if (ids(object.type()).get(object.positive_id())) {
                 writer(object);
             }
         }
