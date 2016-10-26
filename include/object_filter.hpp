@@ -1254,7 +1254,7 @@ class CheckTagRegexExpr : public BoolExpression {
 protected:
 
     void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CHECK_TAG[" << m_key << "][" << operator_name(m_op) << "][" << m_value << "][" << (m_case_insensitive ? " (IGNORE CASE)" : "") << "]\n";
+        out << "CHECK_TAG[" << m_key << "][" << operator_name(m_op) << "][" << m_value << "][" << (m_case_insensitive ? "IGNORE_CASE" : "") << "]\n";
     }
 
 public:
@@ -1317,8 +1317,10 @@ class InIntegerList : public BoolExpression {
 
 protected:
 
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "IN_INT_LIST[...]\n";
+    void do_print(std::ostream& out, int level) const override final {
+        out << "IN_INT_LIST\n";
+        m_attr->print(out, level + 1);
+        out << " VALUES[...]\n";
     }
 
 public:
