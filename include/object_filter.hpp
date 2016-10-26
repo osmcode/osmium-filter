@@ -89,6 +89,8 @@ inline const char* operator_name(integer_op_type op) noexcept {
 enum class string_op_type {
     equal,
     not_equal,
+    prefix_equal,
+    prefix_not_equal,
     match,
     not_match
 };
@@ -97,6 +99,8 @@ inline const char* operator_name(string_op_type op) noexcept {
     static const char* names[] = {
         "equal",
         "not_equal",
+        "prefix_equal",
+        "prefix_not_equal",
         "match",
         "not_match"
     };
@@ -901,6 +905,10 @@ class BinaryStrOperation : public BoolExpression {
                 return !std::strcmp(value, m_rhs->eval_string(t));
             case string_op_type::not_equal:
                 return std::strcmp(value, m_rhs->eval_string(t));
+            case string_op_type::prefix_equal:
+                return !std::strncmp(value, m_rhs->eval_string(t), std::strlen(m_rhs->eval_string(t)));
+            case string_op_type::prefix_not_equal:
+                return std::strncmp(value, m_rhs->eval_string(t), std::strlen(m_rhs->eval_string(t)));
             case string_op_type::match:
                 return std::regex_search(value, *(dynamic_cast<RegexValue*>(rhs())->value()));
             case string_op_type::not_match:

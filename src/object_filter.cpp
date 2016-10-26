@@ -116,8 +116,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         oper_int.name("integer comparison operand");
 
         // operator for simple string comparison
-        oper_str       = (qi::lit("=")  > qi::attr(string_op_type::equal))
-                       | (qi::lit("!=") > qi::attr(string_op_type::not_equal));
+        oper_str       = (qi::lit("=")   > qi::attr(string_op_type::equal))
+                       | (qi::lit("!=")  > qi::attr(string_op_type::not_equal))
+                       | (qi::lit("^=")  > qi::attr(string_op_type::prefix_equal))
+                       | (qi::lit("!^=") > qi::attr(string_op_type::prefix_not_equal));
         oper_str.name("string comparison operand");
 
         // operator for regex string comparison
