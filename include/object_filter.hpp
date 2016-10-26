@@ -1005,9 +1005,9 @@ public:
         assert(m_expr);
     }
 
-    explicit TagsExpr(ExprNode* expr) {
+    explicit TagsExpr(ExprNode* expr) :
+        m_expr(expr) {
         assert(m_expr);
-        m_expr.reset(expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
