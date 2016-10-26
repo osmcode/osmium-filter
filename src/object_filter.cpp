@@ -30,7 +30,7 @@ struct comment_skipper : public qi::grammar<Iterator> {
 
     comment_skipper() : comment_skipper::base_type(skip, "Comment skipper") {
         skip = ascii::space
-             | ('#' >> *(qi::char_ - '\n') >> '\n');
+             | ('#' >> *(qi::char_ - '\n') >> ('\n' | qi::eoi));
     }
 
 };
@@ -227,6 +227,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         // primitive expression
         primitive      = object_type[qi::_val = boost::phoenix::new_<CheckObjectTypeExpr>(qi::_1)]
                        | qi::lit("closed_way")[qi::_val = boost::phoenix::new_<ClosedWayExpr>()]
+                       | qi::lit("true")[qi::_val = boost::phoenix::new_<BoolValue>(true)]
+                       | qi::lit("false")[qi::_val = boost::phoenix::new_<BoolValue>(false)]
                        | tag[qi::_val = qi::_1]
                        | key[qi::_val = qi::_1]
                        | attr[qi::_val = qi::_1];
@@ -262,7 +264,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
 }; // struct OSMObjectFilterGrammar
 
-OSMObjectFilter::OSMObjectFilter(std::string& input) {
+OSMObjectFilter::OSMObjectFilter(const std::string& input) {
     comment_skipper<std::string::const_iterator> skip;
 
     OSMObjectFilterGrammar<std::string::const_iterator> grammar;

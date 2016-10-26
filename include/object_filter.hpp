@@ -79,7 +79,7 @@ inline const char* operator_name(integer_op_type op) noexcept {
         "not_equal",
         "less_than",
         "less_or_equal",
-        "greater",
+        "greater_than",
         "greater_or_equal"
     };
 
@@ -152,8 +152,8 @@ public:
     virtual expr_node_type expression_type() const noexcept = 0;
 
     virtual entity_bits_pair calc_entities() const noexcept {
-        return std::make_pair(osmium::osm_entity_bits::all,
-                              osmium::osm_entity_bits::all);
+        return std::make_pair(osmium::osm_entity_bits::nwr,
+                              osmium::osm_entity_bits::nwr);
     }
 
     void print(std::ostream& out, int level) const {
@@ -402,7 +402,7 @@ public:
     }
 
     entity_bits_pair calc_entities() const noexcept override final {
-        const auto bits = std::make_pair(osmium::osm_entity_bits::all, osmium::osm_entity_bits::all);
+        const auto bits = std::make_pair(osmium::osm_entity_bits::nwr, osmium::osm_entity_bits::nwr);
         return std::accumulate(children().begin(), children().end(), bits, [](entity_bits_pair b, const std::unique_ptr<ExprNode>& e) {
             const auto x = e->calc_entities();
             return std::make_pair(b.first & x.first, b.second & x.second);
@@ -1371,7 +1371,7 @@ class OSMObjectFilter {
 
 public:
 
-    explicit OSMObjectFilter(std::string& input);
+    explicit OSMObjectFilter(const std::string& input);
 
     const ExprNode* root() const noexcept {
         return m_root.get();

@@ -196,5 +196,8 @@ set(CMAKE_BUILD_TYPE ${build_type}
 include_directories(include)
 add_subdirectory(src)
 
+enable_testing()
+add_subdirectory(test)
+
 
 #-----------------------------------------------------------------------------
