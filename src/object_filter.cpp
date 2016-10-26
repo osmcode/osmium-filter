@@ -226,6 +226,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         // primitive expression
         primitive      = object_type[qi::_val = boost::phoenix::new_<CheckObjectTypeExpr>(qi::_1)]
+                       | qi::lit("closed_way")[qi::_val = boost::phoenix::new_<ClosedWayExpr>()]
                        | tag[qi::_val = qi::_1]
                        | key[qi::_val = qi::_1]
                        | attr[qi::_val = qi::_1];

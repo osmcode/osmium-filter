@@ -125,6 +125,7 @@ enum class expr_node_type : int {
     tags_expr,
     nodes_expr,
     members_expr,
+    closed_way,
     in_integer_list,
     check_has_type,
     check_has_key,
@@ -1130,6 +1131,34 @@ public:
     }
 
 }; // class MembersExpr
+
+class ClosedWayExpr : public BoolExpression {
+
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "CLOSED_WAY\n";
+    }
+
+public:
+
+    ClosedWayExpr() = default;
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::closed_way;
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        return object.type() == osmium::item_type::way &&
+               static_cast<const osmium::Way&>(object).is_closed();
+    }
+
+    entity_bits_pair calc_entities() const noexcept override final {
+        return std::make_pair(osmium::osm_entity_bits::way,
+                              osmium::osm_entity_bits::nwr);
+    }
+
+}; // class ClosedWayExpr
 
 class CheckHasKeyExpr : public BoolExpression {
 
