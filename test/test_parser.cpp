@@ -93,6 +93,7 @@ TEST_CASE("has key") {
 }
 
 TEST_CASE("closed way") {
+    check("closed_way", eb::way, "CLOSED_WAY");
     check("closed_way or (relation and 'type'='multipolygon')", eb::way | eb::relation, "BOOL_OR\n CLOSED_WAY\n BOOL_AND\n  HAS_TYPE[relation]\n  CHECK_TAG[type][equal][multipolygon]");
 }
 

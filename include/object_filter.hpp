@@ -136,6 +136,90 @@ enum class expr_node_type : int {
 using entity_bits_pair = std::pair<osmium::osm_entity_bits::type,
                                    osmium::osm_entity_bits::type>;
 
+class unused {};
+
+class ExprNode;
+class WithSubExpr;
+
+// This is a horrible hack to make boost::spirit work with unique_ptr.
+// I could not find a cleaner way than this. Basically we wrap the unique_ptr
+// in this class to make it copyable (by doing a move inside the copy of the
+// wrapper class).
+template <typename T>
+struct expr_node {
+
+    mutable std::unique_ptr<ExprNode> m_data;
+
+    using value_type = expr_node<ExprNode>;
+
+    expr_node() :
+        m_data(nullptr) {
+    }
+
+    expr_node(unused) :
+        m_data(new T) {
+    }
+
+    // Used for AndExpr and OrExpr
+    expr_node(const std::vector<expr_node<ExprNode>>& expressions) :
+        m_data(nullptr) {
+        if (expressions.size() == 1) {
+            m_data.reset(expressions[0].release());
+        } else {
+            m_data.reset(new T(expressions));
+        }
+    }
+
+    template <typename... Args>
+    expr_node(Args&&... args) :
+        m_data(new T(std::forward<Args>(args)...)) {
+    }
+
+    expr_node(const expr_node& other) :
+        m_data(std::move(other.m_data)) {
+    }
+
+    template <typename D, typename std::enable_if<std::is_base_of<T, D>{}, int>::type = 0>
+    expr_node(const expr_node<D>& other) {
+        m_data.reset(other.m_data.release());
+    }
+
+    expr_node(expr_node&& other) = default;
+
+    template <typename D, typename std::enable_if<std::is_base_of<T, D>{}, int>::type = 0>
+    expr_node(expr_node<D>&& other) {
+        m_data.reset(other.m_data.release());
+    }
+
+    expr_node& operator=(const expr_node& other) {
+        m_data = std::move(other.m_data);
+        return *this;
+    }
+
+    template <typename D, typename std::enable_if<std::is_base_of<T, D>{}, int>::type = 0>
+    expr_node& operator=(const expr_node<D>& other) {
+        m_data = std::move(other.m_data);
+        return *this;
+    }
+
+    expr_node& operator=(expr_node&& other) = default;
+
+    template <typename D, typename std::enable_if<std::is_base_of<T, D>{}, int>::type = 0>
+    expr_node& operator=(expr_node<D>&& other) {
+        m_data = std::move(other.m_data);
+        return *this;
+    }
+
+    ExprNode* release() const {
+        return m_data.release();
+    }
+
+    ExprNode* get() const {
+        return m_data.get();
+    }
+
+}; // class expr_node
+
 class ExprNode {
 
 protected:
@@ -354,10 +438,10 @@ public:
 #endif
     }
 
-    explicit WithSubExpr(const std::vector<ExprNode*>& children) {
-        for (auto* child : children) {
-            assert(child);
-            m_children.emplace_back(child);
+    explicit WithSubExpr(const std::vector<expr_node<ExprNode>>& children) {
+        for (auto& child : children) {
+            assert(child.get());
+            m_children.emplace_back(child.release());
         }
     }
 
@@ -393,7 +477,7 @@ public:
         WithSubExpr(std::move(children)) {
     }
 
-    explicit AndExpr(const std::vector<ExprNode*>& children) :
+    explicit AndExpr(const std::vector<expr_node<ExprNode>>& children) :
         WithSubExpr(children) {
     }
 
@@ -453,7 +537,7 @@ public:
         WithSubExpr(std::move(children)) {
     }
 
-    explicit OrExpr(const std::vector<ExprNode*>& children) :
+    explicit OrExpr(const std::vector<expr_node<ExprNode>>& children) :
         WithSubExpr(children) {
     }
 
@@ -501,14 +585,14 @@ protected:
 
 public:
 
-    explicit NotExpr(std::unique_ptr<ExprNode>&& e) :
-        m_expr(std::move(e)) {
-        assert(e);
+    explicit NotExpr(std::unique_ptr<ExprNode>&& expr) :
+        m_expr(std::move(expr)) {
+        assert(m_expr);
     }
 
-    explicit NotExpr(ExprNode* e) {
-        assert(e);
-        m_expr.reset(e);
+    explicit NotExpr(expr_node<ExprNode> expr) :
+        m_expr(expr.release()) {
+        assert(m_expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -846,10 +930,10 @@ public:
         assert(rhs);
     }
 
-    explicit BinaryIntOperation(const std::tuple<ExprNode*, integer_op_type, ExprNode*>& params) noexcept {
-        m_lhs.reset(std::get<0>(params));
-        m_op = std::get<1>(params);
-        m_rhs.reset(std::get<2>(params));
+    explicit BinaryIntOperation(const std::tuple<expr_node<ExprNode>, integer_op_type, expr_node<ExprNode>>& params) noexcept :
+        m_lhs(std::get<0>(params).release()),
+        m_rhs(std::get<2>(params).release()),
+        m_op(std::get<1>(params)) {
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -941,10 +1025,10 @@ public:
         assert(rhs);
     }
 
-    explicit BinaryStrOperation(const std::tuple<ExprNode*, string_op_type, ExprNode*>& params) noexcept {
-        m_lhs.reset(std::get<0>(params));
-        m_op = std::get<1>(params);
-        m_rhs.reset(std::get<2>(params));
+    explicit BinaryStrOperation(const std::tuple<expr_node<ExprNode>, string_op_type, expr_node<ExprNode>>& params) noexcept :
+        m_lhs(std::get<0>(params).release()),
+        m_rhs(std::get<2>(params).release()),
+        m_op(std::get<1>(params)) {
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -1005,8 +1089,8 @@ public:
         assert(m_expr);
     }
 
-    explicit TagsExpr(ExprNode* expr) :
-        m_expr(expr) {
+    explicit TagsExpr(expr_node<ExprNode> expr) :
+        m_expr(expr.release()) {
         assert(m_expr);
     }
 
@@ -1048,8 +1132,8 @@ public:
         assert(m_expr);
     }
 
-    explicit NodesExpr(ExprNode* expr) {
-        m_expr.reset(expr);
+    explicit NodesExpr(expr_node<ExprNode> expr) :
+        m_expr(expr.release()) {
         assert(m_expr);
     }
 
@@ -1101,9 +1185,9 @@ public:
         assert(m_expr);
     }
 
-    explicit MembersExpr(ExprNode* expr) {
+    explicit MembersExpr(expr_node<ExprNode> expr) :
+        m_expr(expr.release()) {
         assert(m_expr);
-        m_expr.reset(expr);
     }
 
     expr_node_type expression_type() const noexcept override final {
@@ -1334,8 +1418,8 @@ public:
         }
     }
 
-    explicit InIntegerList(const std::tuple<ExprNode*, std::vector<std::int64_t>>& params) :
-        m_attr(std::get<0>(params)),
+    explicit InIntegerList(const std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>& params) :
+        m_attr(std::get<0>(params).release()),
         m_values(new osmium::index::IdSetSmall<std::uint64_t>) {
         assert(m_attr);
         for (auto value : std::get<1>(params)) {
@@ -1343,8 +1427,8 @@ public:
         }
     }
 
-    explicit InIntegerList(const std::tuple<ExprNode*, std::string>& params) :
-        m_attr(std::get<0>(params)),
+    explicit InIntegerList(const std::tuple<expr_node<ExprNode>, std::string>& params) :
+        m_attr(std::get<0>(params).release()),
         m_values(new osmium::index::IdSetDense<std::uint64_t>) {
         assert(m_attr);
 
