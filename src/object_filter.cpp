@@ -41,40 +41,39 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     template <typename... T>
     using rs = qi::rule<Iterator, comment_skipper<Iterator>, T...>;
 
+    rs<std::string()> single_q_str, double_q_str, plain_string, string;
+    rs<integer_op_type> oper_int;
+    rs<string_op_type> oper_str, oper_regex;
+    rs<std::vector<std::int64_t>()> int_list_value;
+
+    rs<expr_node<IntegerAttribute>()> attr_int;
+    rs<expr_node<StringAttribute>()> attr_str;
+
+    rs<expr_node<ExprNode>()> start_rule, paren_expression, factor, tag, primitive, subexpression, subexpr_int;
     rs<std::vector<expr_node<ExprNode>>()> expression_v, term_v;
     rs<expr_node<OrExpr>()> expression;
     rs<expr_node<AndExpr>()> term;
     rs<expr_node<NotExpr>()> not_factor;
-    rs<expr_node<ExprNode>()> paren_expression, factor, tag, primitive, attr;
     rs<expr_node<ClosedWayExpr>()> closed_way;
+    rs<expr_node<BoolValue>()> bool_true, bool_false;
     rs<expr_node<IntegerValue>()> int_value;
-    rs<expr_node<IntegerAttribute>()> attr_int;
-    rs<expr_node<StringAttribute>()> attr_str;
     rs<expr_node<CheckHasKeyExpr>()> key;
     rs<expr_node<StringValue>()> str_value;
     rs<expr_node<RegexValue>()> regex_value;
-    rs<expr_node<ExprNode>()> subexpression, subexpr_int;
     rs<expr_node<TagsExpr>()> tags_expr;
     rs<expr_node<NodesExpr>()> nodes_expr;
     rs<expr_node<MembersExpr>()> members_expr;
-    rs<std::string()> single_q_str, double_q_str, plain_string, string;
     rs<expr_node<CheckObjectTypeExpr>()> attr_type, object_type;
-    rs<std::vector<std::int64_t>()> int_list_value;
     rs<std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>()> in_int_list_values_tuple;
     rs<std::tuple<expr_node<ExprNode>, std::string>()> in_int_list_filename_tuple;
     rs<expr_node<InIntegerList>()> in_int_list_values;
     rs<expr_node<InIntegerList>()> in_int_list_filename;
-    rs<integer_op_type> oper_int;
-    rs<string_op_type> oper_str;
-    rs<string_op_type> oper_regex;
     rs<std::tuple<std::string, string_op_type, std::string>()> key_oper_str_value;
     rs<std::tuple<std::string, string_op_type, std::string, boost::optional<char>>()> key_oper_regex_value;
     rs<std::tuple<expr_node<ExprNode>, integer_op_type, expr_node<ExprNode>>()> binary_int_oper_tuple;
     rs<std::tuple<expr_node<ExprNode>, string_op_type, expr_node<ExprNode>>()> binary_str_oper_tuple;
     rs<expr_node<BinaryIntOperation>()> binary_int_oper;
     rs<expr_node<BinaryStrOperation>()> binary_str_oper;
-    rs<expr_node<BoolValue>()> bool_true, bool_false;
-    rs<expr_node<ExprNode>()> start_rule;
     rs<expr_node<CheckTagStrExpr>()> tag_str;
     rs<expr_node<CheckTagRegexExpr>()> tag_regex;
 
@@ -125,9 +124,55 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | (qi::lit("!~") > qi::attr(string_op_type::not_match));
         oper_regex.name("string regex comparison operand");
 
-        // a tag key
+        // IntegerAttribute
+        attr_int       = (qi::lit("@id")        > qi::attr(integer_attribute_type::id))
+                       | (qi::lit("@version")   > qi::attr(integer_attribute_type::version))
+                       | (qi::lit("@uid")       > qi::attr(integer_attribute_type::uid))
+                       | (qi::lit("@changeset") > qi::attr(integer_attribute_type::changeset))
+                       | (qi::lit("@ref")       > qi::attr(integer_attribute_type::ref));
+        attr_int.name("integer attribute");
+
+        // StringAttribute
+        attr_str       = (qi::lit("@user")  > qi::attr(string_attribute_type::user))
+                       | (qi::lit("@key")   > qi::attr(string_attribute_type::key))
+                       | (qi::lit("@value") > qi::attr(string_attribute_type::value))
+                       | (qi::lit("@role")  > qi::attr(string_attribute_type::role));
+        attr_str.name("string attribute");
+
+        // BoolValue
+        bool_true      = qi::lit("true")  > qi::attr(true);
+        bool_false     = qi::lit("false") > qi::attr(false);
+
+        // IntegerValue
+        int_value      = qi::int_parser<std::int64_t>();
+        int_value.name("integer value");
+
+        // StringValue
+        str_value      = string;
+        str_value.name("string value");
+
+        // RegexValue
+        regex_value    = string;
+        regex_value.name("regex value");
+
+        // CheckObjectTypeExpr
+        object_type    = (qi::lit("node")     > qi::attr(osmium::item_type::node))
+                       | (qi::lit("way")      > qi::attr(osmium::item_type::way))
+                       | (qi::lit("relation") > qi::attr(osmium::item_type::relation));
+        object_type.name("object type");
+
+        // CheckObjectTypeExpr
+        attr_type      = qi::lit("@type")
+                       > '='
+                       > object_type;
+        attr_type.name("object type");
+
+        // CheckHasKeyExpr
         key            = string;
         key.name("tag key");
+
+        // ClosedWayExpr
+        closed_way     = qi::lit("closed_way") > qi::attr(unused());
 
         // a tag (key operator value)
         key_oper_str_value =  string
@@ -149,43 +194,24 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         tag            = tag_str | tag_regex;
         tag.name("tag");
 
-        attr_int       = ((qi::lit("@id")        > qi::attr(integer_attribute_type::id))
-                         |(qi::lit("@version")   > qi::attr(integer_attribute_type::version))
-                         |(qi::lit("@uid")       > qi::attr(integer_attribute_type::uid))
-                         |(qi::lit("@changeset") > qi::attr(integer_attribute_type::changeset))
-                         |(qi::lit("@ref")       > qi::attr(integer_attribute_type::ref))
-                         );
-        attr_int.name("integer attribute");
-
-        attr_str       = ((qi::lit("@user")  > qi::attr(string_attribute_type::user))
-                         |(qi::lit("@key")   > qi::attr(string_attribute_type::key))
-                         |(qi::lit("@value") > qi::attr(string_attribute_type::value))
-                         |(qi::lit("@role")  > qi::attr(string_attribute_type::role))
-                         );
-        attr_str.name("string attribute");
-
         subexpression  = qi::lit('[') > expression > qi::lit(']');
-        subexpression.name("tags expression");
+        subexpression.name("subexpression");
 
+        // TagsExpr
         tags_expr      = qi::lit("@tags") >> subexpression;
         tags_expr.name("tags expression");
 
+        // NodesExpr
         nodes_expr     = qi::lit("@nodes") >> subexpression;
         nodes_expr.name("nodes expression");
 
+        // MembersExpr
         members_expr   = qi::lit("@members") >> subexpression;
         members_expr.name("members expression");
 
-        int_value      = qi::int_parser<std::int64_t>();
-        int_value.name("integer value");
-
-        str_value      = string;
-        str_value.name("string value");
-
-        regex_value      = string;
-        regex_value.name("regex value");
-
-        int_list_value = qi::lit("(") >> (qi::int_parser<std::int64_t>() % qi::lit(",")) >> qi::lit(")");
+        int_list_value   = qi::lit("(")
+                         >> (qi::int_parser<std::int64_t>() % qi::lit(","))
+                         >> qi::lit(")");
 
         in_int_list_values_tuple = attr_int >> qi::lit("in") >> int_list_value;
         in_int_list_values = in_int_list_values_tuple;
@@ -193,79 +219,57 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         in_int_list_filename_tuple = attr_int >> qi::lit("in") >> string;
         in_int_list_filename = in_int_list_filename_tuple;
 
-        subexpr_int    = tags_expr
-                       | nodes_expr
-                       | members_expr;
+        subexpr_int      = tags_expr
+                         | nodes_expr
+                         | members_expr;
 
         // an attribute name, comparison operator and integer
         binary_int_oper_tuple  = (attr_int | int_value | subexpr_int)
                          >> oper_int
                          >> (attr_int | int_value | subexpr_int);
-        binary_int_oper = binary_int_oper_tuple;
+        binary_int_oper  = binary_int_oper_tuple;
         binary_int_oper.name("binary_int_oper");
 
         binary_str_oper_tuple = (attr_str >> oper_str >> str_value) | (attr_str >> oper_regex >> regex_value);
 
-        binary_str_oper = binary_str_oper_tuple;
+        binary_str_oper  = binary_str_oper_tuple;
         binary_str_oper.name("binary_str_oper");
 
-        // name of OSM object type
-        object_type    = (qi::lit("node")     > qi::attr(osmium::item_type::node))
-                       | (qi::lit("way")      > qi::attr(osmium::item_type::way))
-                       | (qi::lit("relation") > qi::attr(osmium::item_type::relation));
-        object_type.name("object type");
-
-        // OSM object type as attribute
-        attr_type      = qi::lit("@type")
-                       > '='
-                       > object_type;
-        attr_type.name("attr_type");
-
-        // attribute expression
-        attr           = attr_type
-                       | binary_int_oper
-                       | binary_str_oper
-                       | in_int_list_values
-                       | in_int_list_filename;
-        attr.name("attr");
-
-        bool_true      = qi::lit("true")  > qi::attr(true);
-        bool_false     = qi::lit("false") > qi::attr(false);
-
-        closed_way     = qi::lit("closed_way") > qi::attr(unused());
-
-        // primitive expression
-        primitive      = object_type
-                       | closed_way
-                       | bool_true
-                       | bool_false
-                       | tag
-                       | key
-                       | attr;
+        primitive        = bool_true
+                         | bool_false
+                         | object_type
+                         | closed_way
+                         | tag
+                         | key
+                         | attr_type
+                         | binary_int_oper
+                         | binary_str_oper
+                         | in_int_list_values
+                         | in_int_list_filename;
         primitive.name("condition");
-
-        // boolean logic expressions
-        expression_v      = term % qi::lit("or");
-        expression      = expression_v;
-        expression.name("expression");
-
-        term_v          = factor % qi::lit("and");
-        term            = term_v;
-        term.name("term");
 
         paren_expression = '('
                          > expression
                          > ')';
         paren_expression.name("parenthesized expression");
 
-        not_factor      = qi::lit("not") >> factor;
+        not_factor       = qi::lit("not")
+                         > factor;
 
-        factor          = not_factor
-                        | paren_expression
-                        | primitive;
+        factor           = not_factor
+                         | paren_expression
+                         | primitive;
         factor.name("factor");
 
-        start_rule = expression;
+        term_v           = factor % qi::lit("and");
+        term             = term_v;
+        term.name("term");
+
+        expression_v     = term % qi::lit("or");
+        expression       = expression_v;
+        expression.name("expression");
+
+        start_rule       = expression;
 
         qi::on_error<qi::fail>(expression,
             std::cerr
