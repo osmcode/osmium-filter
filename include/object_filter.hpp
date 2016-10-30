@@ -288,6 +288,9 @@ public:
         do_print(out, level);
     }
 
+    virtual void prepare() {
+    }
+
     virtual bool eval_bool(const osmium::OSMObject& /*object*/) const {
         throw std::runtime_error{"Expected a bool expression"};
     }
@@ -488,6 +491,12 @@ public:
         return m_children;
     }
 
+    void prepare() override final {
+        for (auto& child : m_children) {
+            child->prepare();
+        }
+    }
+
 }; // class WithSubExpr
 
 class AndExpr : public WithSubExpr {
@@ -645,6 +654,10 @@ public:
     entity_bits_pair calc_entities() const noexcept override final {
         const auto e = expr()->calc_entities();
         return std::make_pair(e.second, e.first);
+    }
+
+    void prepare() override final {
+        m_expr->prepare();
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
@@ -1022,6 +1035,11 @@ public:
         return m_op;
     }
 
+    void prepare() override final {
+        lhs()->prepare();
+        rhs()->prepare();
+    }
+
     bool eval_bool(const osmium::OSMObject& object) const override final {
         return compare(lhs()->eval_int(object),
                        rhs()->eval_int(object));
@@ -1117,6 +1135,11 @@ public:
         return m_op;
     }
 
+    void prepare() override final {
+        lhs()->prepare();
+        rhs()->prepare();
+    }
+
     bool eval_bool(const osmium::OSMObject& object) const override final {
         return eval_bool_impl(object);
     }
@@ -1166,6 +1189,10 @@ public:
         return m_expr.get();
     }
 
+    void prepare() override final {
+        m_expr->prepare();
+    }
+
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
         return std::count_if(object.tags().cbegin(), object.tags().cend(), [this](const osmium::Tag& tag){
             return expr()->eval_bool(tag);
@@ -1207,6 +1234,10 @@ public:
 
     ExprNode* expr() const noexcept {
         return m_expr.get();
+    }
+
+    void prepare() override final {
+        m_expr->prepare();
     }
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
@@ -1260,6 +1291,10 @@ public:
 
     ExprNode* expr() const noexcept {
         return m_expr.get();
+    }
+
+    void prepare() override final {
+        m_expr->prepare();
     }
 
     std::int64_t eval_int(const osmium::OSMObject& object) const override final {
@@ -1484,18 +1519,28 @@ public:
 
     explicit InIntegerList(const std::tuple<expr_node<ExprNode>, list_op_type, std::string>& params) :
         m_attr(std::get<0>(params).release()),
-        m_values(new osmium::index::IdSetDense<std::uint64_t>),
+        m_values(),
         m_filename(std::get<2>(params)),
         m_op(std::get<1>(params)) {
         assert(m_attr);
-        load_file();
     }
 
     expr_node_type expression_type() const noexcept override final {
         return expr_node_type::in_integer_list;
     }
 
+    void prepare() override final {
+        m_attr->prepare();
+        if (!m_values) {
+            m_values.reset(new osmium::index::IdSetDense<std::uint64_t>);
+        } else {
+            m_values->clear();
+        }
+        load_file();
+    }
+
     bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
+        assert(m_values);
         std::int64_t value = m_attr->eval_int(object);
         const bool comp = m_values->get(std::uint64_t(value));
         return comp == (m_op == list_op_type::in);
@@ -1522,6 +1567,10 @@ public:
 
     osmium::osm_entity_bits::type entities() const noexcept {
         return m_root->calc_entities().first;
+    }
+
+    void prepare() {
+        return m_root->prepare();
     }
 
     bool match(const osmium::OSMObject& object) const {

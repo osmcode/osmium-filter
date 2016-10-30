@@ -136,6 +136,8 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    filter.prepare();
+
     const int fd = ::open(input_filename.c_str(), O_RDONLY);
     const auto size = osmium::util::file_size(fd);
     const osmium::util::MemoryMapping mapping{size, osmium::util::MemoryMapping::mapping_mode::readonly, fd};

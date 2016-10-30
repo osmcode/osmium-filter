@@ -136,6 +136,8 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    filter.prepare();
+
     if (complete_ways) {
         osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
 

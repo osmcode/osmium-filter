@@ -136,6 +136,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    filter.prepare();
     CompiledFilter cfilter{filter};
 
     if (complete_ways) {
