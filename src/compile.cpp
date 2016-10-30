@@ -278,13 +278,6 @@ NativeJIT::Node<const std::regex*>& CompiledFilter::compile_regex_value(const Ex
     return m_expression.Immediate(x->value());
 }
 
-NativeJIT::Node<bool>& CompiledFilter::check_object_type(const CheckObjectTypeExpr* e) {
-    auto& func = m_expression.Immediate(detail::get_type);
-    auto& call = m_expression.Call(func, m_expression.GetP1());
-    auto& compare = m_expression.Compare<NativeJIT::JccType::JE>(call, m_expression.Immediate(int(e->type())));
-    return m_expression.Conditional(compare, m_expression.Immediate(true), m_expression.Immediate(false));
-}
-
 NativeJIT::Node<bool>& CompiledFilter::check_has_key(const CheckHasKeyExpr* e) {
     auto& func = m_expression.Immediate(detail::has_key);
 
@@ -332,8 +325,6 @@ NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
             return compile_binary_int_op(node);
         case expr_node_type::binary_str_op:
             return compile_binary_str_op(node);
-        case expr_node_type::check_has_type:
-            return check_object_type(static_cast<const CheckObjectTypeExpr*>(node));
         case expr_node_type::check_has_key:
             return check_has_key(static_cast<const CheckHasKeyExpr*>(node));
         case expr_node_type::check_tag_str:

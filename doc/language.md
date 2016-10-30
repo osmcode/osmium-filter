@@ -15,18 +15,6 @@ partially implemented and things will change.
     (EXPR)
 
 
-## Type checks
-
-Return a boolean
-
-    @type == node
-    @type == way
-    @type == relation
-    node
-    way
-    relation
-
-
 ## Integer comparisons
 
 Return a boolean
@@ -84,8 +72,13 @@ Not yet implemented:
 
 Return a boolean
 
+    @node
+    @way
+    @relation
     @visible
-    @deleted
+    @closed_way
+    @open_way
+
 
 ## Integer attributes
 

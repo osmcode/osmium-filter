@@ -39,14 +39,11 @@ TEST_CASE("boolean expressions") {
 }
 
 TEST_CASE("object types") {
-    check("node", eb::node, "HAS_TYPE[node]");
-    check("@type == node", eb::node, "HAS_TYPE[node]");
-    check("way", eb::way, "HAS_TYPE[way]");
-    check("@type == way", eb::way, "HAS_TYPE[way]");
-    check("relation", eb::relation, "HAS_TYPE[relation]");
-    check("@type == relation", eb::relation, "HAS_TYPE[relation]");
-    check("node or way", eb::node | eb::way, "BOOL_OR\n HAS_TYPE[node]\n HAS_TYPE[way]");
-    check("node and @type == way", eb::nothing, "BOOL_AND\n HAS_TYPE[node]\n HAS_TYPE[way]");
+    check("@node",          eb::node,           "BOOL_ATTR[node]");
+    check("@way",           eb::way,            "BOOL_ATTR[way]");
+    check("@relation",      eb::relation,       "BOOL_ATTR[relation]");
+    check("@node or @way",  eb::node | eb::way, "BOOL_OR\n BOOL_ATTR[node]\n BOOL_ATTR[way]");
+    check("@node and @way", eb::nothing,        "BOOL_AND\n BOOL_ATTR[node]\n BOOL_ATTR[way]");
 }
 
 TEST_CASE("integer comparison") {
@@ -86,7 +83,7 @@ TEST_CASE("boolean attributes") {
     check("@visible",     eb::nwr, "BOOL_ATTR[visible]");
     check("not @visible", eb::nwr, "BOOL_NOT\n BOOL_ATTR[visible]");
     check("@closed_way",  eb::way, "BOOL_ATTR[closed_way]");
-    check("@closed_way or (relation and 'type' == 'multipolygon')", eb::way | eb::relation, "BOOL_OR\n BOOL_ATTR[closed_way]\n BOOL_AND\n  HAS_TYPE[relation]\n  CHECK_TAG[type][equal][multipolygon]");
+    check("@closed_way or (@relation and 'type' == 'multipolygon')", eb::way | eb::relation, "BOOL_OR\n BOOL_ATTR[closed_way]\n BOOL_AND\n  BOOL_ATTR[relation]\n  CHECK_TAG[type][equal][multipolygon]");
     check("@open_way",    eb::way, "BOOL_ATTR[open_way]");
 }
 

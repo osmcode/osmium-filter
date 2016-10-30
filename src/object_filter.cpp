@@ -63,7 +63,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<expr_node<TagsExpr>()> tags_expr;
     rs<expr_node<NodesExpr>()> nodes_expr;
     rs<expr_node<MembersExpr>()> members_expr;
-    rs<expr_node<CheckObjectTypeExpr>()> attr_type, object_type;
     rs<std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>()> in_int_list_values_tuple;
     rs<std::tuple<expr_node<ExprNode>, std::string>()> in_int_list_filename_tuple;
     rs<expr_node<InIntegerList>()> in_int_list_values;
@@ -139,7 +138,11 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | (qi::lit("@role")  > qi::attr(string_attribute_type::role));
         attr_str.name("string attribute");
 
-        attr_boolean   = (qi::lit("@visible")    > qi::attr(boolean_attribute_type::visible))
+        // BooleanAttribute
+        attr_boolean   = (qi::lit("@node")       > qi::attr(boolean_attribute_type::node))
+                       | (qi::lit("@way")        > qi::attr(boolean_attribute_type::way))
+                       | (qi::lit("@relation")   > qi::attr(boolean_attribute_type::relation))
+                       | (qi::lit("@visible")    > qi::attr(boolean_attribute_type::visible))
                        | (qi::lit("@closed_way") > qi::attr(boolean_attribute_type::closed_way))
                        | (qi::lit("@open_way")   > qi::attr(boolean_attribute_type::open_way));
         attr_boolean.name("boolean attribute");
@@ -159,18 +162,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         // RegexValue
         regex_value    = string;
         regex_value.name("regex value");
-
-        // CheckObjectTypeExpr
-        object_type    = (qi::lit("node")     > qi::attr(osmium::item_type::node))
-                       | (qi::lit("way")      > qi::attr(osmium::item_type::way))
-                       | (qi::lit("relation") > qi::attr(osmium::item_type::relation));
-        object_type.name("object type");
-
-        // CheckObjectTypeExpr
-        attr_type      = qi::lit("@type")
-                       > qi::lit("==")
-                       > object_type;
-        attr_type.name("object type");
 
         // CheckHasKeyExpr
         key            = string;
@@ -240,10 +231,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         primitive        = bool_true
                          | bool_false
                          | attr_boolean
-                         | object_type
                          | tag
                          | key
-                         | attr_type
                          | binary_int_oper
                          | binary_str_oper
                          | in_int_list_values

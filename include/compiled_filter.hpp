@@ -39,7 +39,6 @@ class CompiledFilter {
     NativeJIT::Node<bool>& make_nodes_expr(const TagsExpr* e);
     NativeJIT::Node<bool>& make_members_expr(const TagsExpr* e);
 
-    NativeJIT::Node<bool>& check_object_type(const CheckObjectTypeExpr* e);
     NativeJIT::Node<bool>& check_has_key(const CheckHasKeyExpr* e);
     NativeJIT::Node<bool>& check_tag_str(const CheckTagStrExpr* e);
     NativeJIT::Node<bool>& check_tag_regex(const CheckTagRegexExpr* e);

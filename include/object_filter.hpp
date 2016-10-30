@@ -65,6 +65,9 @@ inline const char* attribute_name(string_attribute_type attr) noexcept {
 }
 
 enum class boolean_attribute_type {
+    node,
+    way,
+    relation,
     visible,
     closed_way,
     open_way
@@ -72,6 +75,9 @@ enum class boolean_attribute_type {
 
 inline const char* attribute_name(boolean_attribute_type attr) noexcept {
     static const char* names[] = {
+        "node",
+        "way",
+        "relation",
         "visible",
         "closed_way",
         "open_way"
@@ -760,45 +766,6 @@ public:
 
 }; // class RegexValue
 
-class CheckObjectTypeExpr : public BoolExpression {
-
-    osmium::item_type m_type;
-
-protected:
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "HAS_TYPE[" << osmium::item_type_to_name(m_type) << "]\n";
-    }
-
-public:
-
-    explicit CheckObjectTypeExpr(osmium::item_type type) :
-        m_type(type) {
-    }
-
-    expr_node_type expression_type() const noexcept override final {
-        return expr_node_type::check_has_type;
-    }
-
-    osmium::item_type type() const noexcept {
-        return m_type;
-    }
-
-    entity_bits_pair calc_entities() const noexcept override final {
-        const auto e = osmium::osm_entity_bits::from_item_type(m_type);
-        return std::make_pair(e, ~e);
-    }
-
-    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
-        return object.type() == m_type;
-    }
-
-    bool eval_bool(const osmium::RelationMember& member) const noexcept override final {
-        return member.type() == m_type;
-    }
-
-}; // class CheckObjectTypeExpr
-
 class IntegerAttribute : public IntegerExpression {
 
     integer_attribute_type m_attribute;
@@ -926,6 +893,12 @@ public:
 
     entity_bits_pair calc_entities() const noexcept override final {
         switch (m_attribute) {
+            case boolean_attribute_type::node:
+                return std::make_pair(osmium::osm_entity_bits::node, ~osmium::osm_entity_bits::node);
+            case boolean_attribute_type::way:
+                return std::make_pair(osmium::osm_entity_bits::way, ~osmium::osm_entity_bits::way);
+            case boolean_attribute_type::relation:
+                return std::make_pair(osmium::osm_entity_bits::relation, ~osmium::osm_entity_bits::relation);
             case boolean_attribute_type::visible:
                 return std::make_pair(osmium::osm_entity_bits::nwr, osmium::osm_entity_bits::nwr);
             case boolean_attribute_type::closed_way:
@@ -939,6 +912,12 @@ public:
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
         switch (m_attribute) {
+            case boolean_attribute_type::node:
+                return object.type() == osmium::item_type::node;
+            case boolean_attribute_type::way:
+                return object.type() == osmium::item_type::way;
+            case boolean_attribute_type::relation:
+                return object.type() == osmium::item_type::relation;
             case boolean_attribute_type::visible:
                 return object.visible();
             case boolean_attribute_type::closed_way:
