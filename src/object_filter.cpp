@@ -48,13 +48,13 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
     rs<expr_node<IntegerAttribute>()> attr_int;
     rs<expr_node<StringAttribute>()> attr_str;
+    rs<expr_node<BooleanAttribute>()> attr_boolean;
 
     rs<expr_node<ExprNode>()> start_rule, paren_expression, factor, tag, primitive, subexpression, subexpr_int;
     rs<std::vector<expr_node<ExprNode>>()> expression_v, term_v;
     rs<expr_node<OrExpr>()> expression;
     rs<expr_node<AndExpr>()> term;
     rs<expr_node<NotExpr>()> not_factor;
-    rs<expr_node<ClosedWayExpr>()> closed_way;
     rs<expr_node<BoolValue>()> bool_true, bool_false;
     rs<expr_node<IntegerValue>()> int_value;
     rs<expr_node<CheckHasKeyExpr>()> key;
@@ -139,6 +139,11 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | (qi::lit("@role")  > qi::attr(string_attribute_type::role));
         attr_str.name("string attribute");
 
+        attr_boolean   = (qi::lit("@visible")    > qi::attr(boolean_attribute_type::visible))
+                       | (qi::lit("@closed_way") > qi::attr(boolean_attribute_type::closed_way))
+                       | (qi::lit("@open_way")   > qi::attr(boolean_attribute_type::open_way));
+        attr_boolean.name("boolean attribute");
+
         // BoolValue
         bool_true      = qi::lit("true")  > qi::attr(true);
         bool_false     = qi::lit("false") > qi::attr(false);
@@ -170,9 +175,6 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         // CheckHasKeyExpr
         key            = string;
         key.name("tag key");
-
-        // ClosedWayExpr
-        closed_way     = qi::lit("closed_way") > qi::attr(unused());
 
         // a tag (key operator value)
         key_oper_str_value =  string
@@ -237,8 +239,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         primitive        = bool_true
                          | bool_false
+                         | attr_boolean
                          | object_type
-                         | closed_way
                          | tag
                          | key
                          | attr_type

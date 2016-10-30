@@ -64,6 +64,22 @@ inline const char* attribute_name(string_attribute_type attr) noexcept {
     return names[int(attr)];
 }
 
+enum class boolean_attribute_type {
+    visible,
+    closed_way,
+    open_way
+};
+
+inline const char* attribute_name(boolean_attribute_type attr) noexcept {
+    static const char* names[] = {
+        "visible",
+        "closed_way",
+        "open_way"
+    };
+
+    return names[int(attr)];
+}
+
 enum class integer_op_type {
     equal,
     not_equal,
@@ -119,6 +135,7 @@ enum class expr_node_type : int {
     regex_value,
     integer_attribute,
     string_attribute,
+    boolean_attribute,
     binary_int_op,
     binary_str_op,
     string_comp,
@@ -883,6 +900,58 @@ public:
 
 }; // class StringAttribute
 
+class BooleanAttribute : public BoolExpression {
+
+    boolean_attribute_type m_attribute;
+
+protected:
+
+    void do_print(std::ostream& out, int /*level*/) const override final {
+        out << "BOOL_ATTR[" << attribute_name(m_attribute) << "]\n";
+    }
+
+public:
+
+    explicit BooleanAttribute(boolean_attribute_type attr) noexcept :
+        m_attribute(attr) {
+    }
+
+    expr_node_type expression_type() const noexcept override final {
+        return expr_node_type::boolean_attribute;
+    }
+
+    boolean_attribute_type attribute() const noexcept {
+        return m_attribute;
+    }
+
+    entity_bits_pair calc_entities() const noexcept override final {
+        switch (m_attribute) {
+            case boolean_attribute_type::visible:
+                return std::make_pair(osmium::osm_entity_bits::nwr, osmium::osm_entity_bits::nwr);
+            case boolean_attribute_type::closed_way:
+                return std::make_pair(osmium::osm_entity_bits::way, ~osmium::osm_entity_bits::way);
+            case boolean_attribute_type::open_way:
+                return std::make_pair(osmium::osm_entity_bits::way, ~osmium::osm_entity_bits::way);
+        }
+
+        assert(false);
+    }
+
+    bool eval_bool(const osmium::OSMObject& object) const override final {
+        switch (m_attribute) {
+            case boolean_attribute_type::visible:
+                return object.visible();
+            case boolean_attribute_type::closed_way:
+                return object.type() == osmium::item_type::way && static_cast<const osmium::Way&>(object).is_closed();
+            case boolean_attribute_type::open_way:
+                return object.type() == osmium::item_type::way && !static_cast<const osmium::Way&>(object).is_closed();
+        }
+
+        assert(false);
+    }
+
+}; // class BooleanAttribute
+
 class BinaryIntOperation : public BoolExpression {
 
     std::unique_ptr<ExprNode> m_lhs;
@@ -1215,34 +1284,6 @@ public:
     }
 
 }; // class MembersExpr
-
-class ClosedWayExpr : public BoolExpression {
-
-protected:
-
-    void do_print(std::ostream& out, int /*level*/) const override final {
-        out << "CLOSED_WAY\n";
-    }
-
-public:
-
-    ClosedWayExpr() = default;
-
-    expr_node_type expression_type() const noexcept override final {
-        return expr_node_type::closed_way;
-    }
-
-    bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
-        return object.type() == osmium::item_type::way &&
-               static_cast<const osmium::Way&>(object).is_closed();
-    }
-
-    entity_bits_pair calc_entities() const noexcept override final {
-        return std::make_pair(osmium::osm_entity_bits::way,
-                              osmium::osm_entity_bits::nwr);
-    }
-
-}; // class ClosedWayExpr
 
 class CheckHasKeyExpr : public BoolExpression {
 

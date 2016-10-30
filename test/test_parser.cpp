@@ -82,6 +82,14 @@ TEST_CASE("simple integer attributes") {
     check("@changeset == 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[changeset]\n INT_VALUE[1]");
 }
 
+TEST_CASE("boolean attributes") {
+    check("@visible",     eb::nwr, "BOOL_ATTR[visible]");
+    check("not @visible", eb::nwr, "BOOL_NOT\n BOOL_ATTR[visible]");
+    check("@closed_way",  eb::way, "BOOL_ATTR[closed_way]");
+    check("@closed_way or (relation and 'type' == 'multipolygon')", eb::way | eb::relation, "BOOL_OR\n BOOL_ATTR[closed_way]\n BOOL_AND\n  HAS_TYPE[relation]\n  CHECK_TAG[type][equal][multipolygon]");
+    check("@open_way",    eb::way, "BOOL_ATTR[open_way]");
+}
+
 TEST_CASE("has key") {
     check("'highway'", eb::nwr, "HAS_KEY[highway]");
     check("'highway' == 'primary'", eb::nwr, "CHECK_TAG[highway][equal][primary]");
@@ -90,10 +98,5 @@ TEST_CASE("has key") {
     check("'highway' !~ 'primary'", eb::nwr, "CHECK_TAG[highway][not_match][primary][]");
     check("'highway' =~ 'primary'i", eb::nwr, "CHECK_TAG[highway][match][primary][IGNORE_CASE]");
     check("'highway' !~ 'primary'i", eb::nwr, "CHECK_TAG[highway][not_match][primary][IGNORE_CASE]");
-}
-
-TEST_CASE("closed way") {
-    check("closed_way", eb::way, "CLOSED_WAY");
-    check("closed_way or (relation and 'type' == 'multipolygon')", eb::way | eb::relation, "BOOL_OR\n CLOSED_WAY\n BOOL_AND\n  HAS_TYPE[relation]\n  CHECK_TAG[type][equal][multipolygon]");
 }
 
