@@ -157,7 +157,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         // BooleanValue
         bool_true      = qi::lit("true")  > qi::attr(true);
+        bool_true.name("true");
+
         bool_false     = qi::lit("false") > qi::attr(false);
+        bool_true.name("false");
 
         // IntegerValue
         int_value      = qi::int_parser<std::int64_t>();
@@ -179,15 +182,20 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         tag_str_v      = string
                        >> oper_str
                        >> string;
+        tag_str_v.name("tag_str_v");
+
         tag_str        = tag_str_v;
+        tag_str.name("tag_str");
 
         // CheckTagRegexExpr
         tag_regex_v    = string
                        >> oper_regex
                        >> string
                        >> -ascii::char_('i');
+        tag_regex_v.name("tag_regex_v");
 
         tag_regex      = tag_regex_v;
+        tag_regex.name("tag_regex");
 
         // Tag check
         tag            = tag_str | tag_regex;
@@ -211,30 +219,42 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         int_list_value   = qi::lit("(")
                          >> (qi::int_parser<std::int64_t>() % qi::lit(","))
                          >> qi::lit(")");
+        int_list_value.name("int_list_value");
 
         list_from_filename     = qi::lit("(")
                                >> qi::lit("<")
                                >> string
                                >> qi::lit(")");
+        list_from_filename.name("list_from_filename");
 
         in_int_list_values_v   = attr_int >> oper_list >> int_list_value;
+        in_int_list_values_v.name("in_int_list_values_v");
+
         in_int_list_values     = in_int_list_values_v;
+        in_int_list_values.name("in_int_list_values");
 
         in_int_list_filename_v = attr_int >> oper_list >> list_from_filename;
+        in_int_list_filename_v.name("in_int_list_filename_v");
+
         in_int_list_filename   = in_int_list_filename_v;
+        in_int_list_filename.name("in_int_list_filename");
 
         subexpr_int      = tags_expr
                          | nodes_expr
                          | members_expr;
+        subexpr_int.name("subexpr_int");
 
         // an attribute name, comparison operator and integer
         binary_int_oper_v  = (attr_int | int_value | subexpr_int)
-                         >> oper_int
-                         >> (attr_int | int_value | subexpr_int);
+                           >> oper_int
+                           >> (attr_int | int_value | subexpr_int);
+        binary_int_oper_v.name("binary_int_oper_v");
+
         binary_int_oper  = binary_int_oper_v;
         binary_int_oper.name("binary_int_oper");
 
         binary_str_oper_v = (attr_str >> oper_str >> str_value) | (attr_str >> oper_regex >> regex_value);
+        binary_str_oper_v.name("binary_str_oper_v");
 
         binary_str_oper  = binary_str_oper_v;
         binary_str_oper.name("binary_str_oper");
@@ -257,6 +277,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         not_factor       = qi::lit("not")
                          > factor;
+        not_factor.name("not_factor");
 
         factor           = not_factor
                          | paren_expression
@@ -264,16 +285,21 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         factor.name("factor");
 
         term_v           = factor % qi::lit("and");
+        term_v.name("term_v");
+
         term             = term_v;
         term.name("term");
 
         expression_v     = term % qi::lit("or");
+        expression_v.name("expression_v");
+
         expression       = expression_v;
         expression.name("expression");
 
         start_rule       = expression;
+        start_rule.name("start_rule");
 
-        qi::on_error<qi::fail>(expression,
+        qi::on_error<qi::fail>(start_rule,
             std::cerr
                 << boost::phoenix::val("ERROR: Expecting ")
                 << boost::spirit::_4
