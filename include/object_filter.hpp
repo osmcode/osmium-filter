@@ -408,7 +408,7 @@ public:
 
 }; // class StringExpression
 
-class BoolValue : public BoolExpression {
+class BooleanValue : public BoolExpression {
 
     bool m_value;
 
@@ -420,7 +420,7 @@ protected:
 
 public:
 
-    explicit BoolValue(bool value = true) :
+    explicit BooleanValue(bool value = true) :
         m_value(value) {
     }
 
@@ -444,7 +444,7 @@ public:
         return m_value;
     }
 
-}; // class BoolValue
+}; // class BooleanValue
 
 class WithSubExpr : public BoolExpression {
 
@@ -1129,7 +1129,7 @@ protected:
 public:
 
     TagsExpr() :
-        m_expr(new BoolValue) {
+        m_expr(new BooleanValue) {
     }
 
     explicit TagsExpr(std::unique_ptr<ExprNode>&& expr) :
@@ -1172,7 +1172,7 @@ protected:
 public:
 
     NodesExpr() :
-        m_expr(new BoolValue) {
+        m_expr(new BooleanValue) {
     }
 
     explicit NodesExpr(std::unique_ptr<ExprNode>&& expr) :
@@ -1225,7 +1225,7 @@ protected:
 public:
 
     MembersExpr() :
-        m_expr(new BoolValue) {
+        m_expr(new BooleanValue) {
     }
 
     explicit MembersExpr(std::unique_ptr<ExprNode>&& expr) :
@@ -1473,7 +1473,7 @@ public:
 
 class OSMObjectFilter {
 
-    std::unique_ptr<ExprNode> m_root = std::unique_ptr<ExprNode>(new BoolValue);
+    std::unique_ptr<ExprNode> m_root = std::unique_ptr<ExprNode>(new BooleanValue);
 
 public:
 

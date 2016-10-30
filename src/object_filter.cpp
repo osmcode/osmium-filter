@@ -55,7 +55,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<expr_node<OrExpr>()> expression;
     rs<expr_node<AndExpr>()> term;
     rs<expr_node<NotExpr>()> not_factor;
-    rs<expr_node<BoolValue>()> bool_true, bool_false;
+    rs<expr_node<BooleanValue>()> bool_true, bool_false;
     rs<expr_node<IntegerValue>()> int_value;
     rs<expr_node<CheckHasKeyExpr>()> key;
     rs<expr_node<StringValue>()> str_value;
@@ -63,16 +63,19 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<expr_node<TagsExpr>()> tags_expr;
     rs<expr_node<NodesExpr>()> nodes_expr;
     rs<expr_node<MembersExpr>()> members_expr;
-    rs<std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>()> in_int_list_values_tuple;
-    rs<std::tuple<expr_node<ExprNode>, std::string>()> in_int_list_filename_tuple;
-    rs<expr_node<InIntegerList>()> in_int_list_values;
-    rs<expr_node<InIntegerList>()> in_int_list_filename;
-    rs<std::tuple<std::string, string_op_type, std::string>()> key_oper_str_value;
-    rs<std::tuple<std::string, string_op_type, std::string, boost::optional<char>>()> key_oper_regex_value;
-    rs<std::tuple<expr_node<ExprNode>, integer_op_type, expr_node<ExprNode>>()> binary_int_oper_tuple;
-    rs<std::tuple<expr_node<ExprNode>, string_op_type, expr_node<ExprNode>>()> binary_str_oper_tuple;
+
+    rs<std::tuple<expr_node<ExprNode>, integer_op_type, expr_node<ExprNode>>()> binary_int_oper_v;
+    rs<std::tuple<expr_node<ExprNode>, string_op_type, expr_node<ExprNode>>()> binary_str_oper_v;
     rs<expr_node<BinaryIntOperation>()> binary_int_oper;
     rs<expr_node<BinaryStrOperation>()> binary_str_oper;
+
+    rs<std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>()> in_int_list_values_v;
+    rs<std::tuple<expr_node<ExprNode>, std::string>()> in_int_list_filename_v;
+    rs<expr_node<InIntegerList>()> in_int_list_values;
+    rs<expr_node<InIntegerList>()> in_int_list_filename;
+
+    rs<std::tuple<std::string, string_op_type, std::string>()> tag_str_v;
+    rs<std::tuple<std::string, string_op_type, std::string, boost::optional<char>>()> tag_regex_v;
     rs<expr_node<CheckTagStrExpr>()> tag_str;
     rs<expr_node<CheckTagRegexExpr>()> tag_regex;
 
@@ -147,7 +150,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                        | (qi::lit("@open_way")   > qi::attr(boolean_attribute_type::open_way));
         attr_boolean.name("boolean attribute");
 
-        // BoolValue
+        // BooleanValue
         bool_true      = qi::lit("true")  > qi::attr(true);
         bool_false     = qi::lit("false") > qi::attr(false);
 
@@ -167,23 +170,21 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         key            = string;
         key.name("tag key");
 
-        // a tag (key operator value)
-        key_oper_str_value =  string
-                           >> oper_str
-                           >> string;
-        key_oper_str_value.name("key_oper_str_value");
+        // CheckTagStrExpr
+        tag_str_v      = string
+                       >> oper_str
+                       >> string;
+        tag_str        = tag_str_v;
 
-        key_oper_regex_value =  string
-                             >> oper_regex
-                             >> string
-                             >> -ascii::char_('i');
-        key_oper_regex_value.name("key_oper_regex_value");
+        // CheckTagRegexExpr
+        tag_regex_v    = string
+                       >> oper_regex
+                       >> string
+                       >> -ascii::char_('i');
 
+        tag_regex      = tag_regex_v;
 
-        tag_str = key_oper_str_value;
-        tag_regex = key_oper_regex_value;
-
-        // a tag
+        // Tag check
         tag            = tag_str | tag_regex;
         tag.name("tag");
 
@@ -206,26 +207,26 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                          >> (qi::int_parser<std::int64_t>() % qi::lit(","))
                          >> qi::lit(")");
 
-        in_int_list_values_tuple = attr_int >> qi::lit("in") >> int_list_value;
-        in_int_list_values = in_int_list_values_tuple;
+        in_int_list_values_v = attr_int >> qi::lit("in") >> int_list_value;
+        in_int_list_values = in_int_list_values_v;
 
-        in_int_list_filename_tuple = attr_int >> qi::lit("in") >> string;
-        in_int_list_filename = in_int_list_filename_tuple;
+        in_int_list_filename_v = attr_int >> qi::lit("in") >> string;
+        in_int_list_filename = in_int_list_filename_v;
 
         subexpr_int      = tags_expr
                          | nodes_expr
                          | members_expr;
 
         // an attribute name, comparison operator and integer
-        binary_int_oper_tuple  = (attr_int | int_value | subexpr_int)
+        binary_int_oper_v  = (attr_int | int_value | subexpr_int)
                          >> oper_int
                          >> (attr_int | int_value | subexpr_int);
-        binary_int_oper  = binary_int_oper_tuple;
+        binary_int_oper  = binary_int_oper_v;
         binary_int_oper.name("binary_int_oper");
 
-        binary_str_oper_tuple = (attr_str >> oper_str >> str_value) | (attr_str >> oper_regex >> regex_value);
+        binary_str_oper_v = (attr_str >> oper_str >> str_value) | (attr_str >> oper_regex >> regex_value);
 
-        binary_str_oper  = binary_str_oper_tuple;
+        binary_str_oper  = binary_str_oper_v;
         binary_str_oper.name("binary_str_oper");
 
         primitive        = bool_true
