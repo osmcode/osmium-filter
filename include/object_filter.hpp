@@ -130,6 +130,19 @@ inline const char* operator_name(string_op_type op) noexcept {
     return names[int(op)];
 }
 
+enum class list_op_type {
+    in,
+    not_in
+};
+
+inline const char* operator_name(list_op_type op) noexcept {
+    static const char* names[] = {
+        "in",
+        "not_in"
+    };
+
+    return names[int(op)];
+}
 
 enum class expr_node_type : int {
     and_expr,
@@ -263,13 +276,16 @@ public:
                               osmium::osm_entity_bits::nwr);
     }
 
-    void print(std::ostream& out, int level) const {
-        const int this_level = level;
+    void indent(std::ostream& out, int level) const {
         while (level > 0) {
             out << ' ';
             --level;
         }
-        do_print(out, this_level);
+    }
+
+    void print(std::ostream& out, int level) const {
+        indent(out, level);
+        do_print(out, level);
     }
 
     virtual bool eval_bool(const osmium::OSMObject& /*object*/) const {
@@ -1418,42 +1434,47 @@ class InIntegerList : public BoolExpression {
 
     std::unique_ptr<ExprNode> m_attr;
     std::unique_ptr<osmium::index::IdSet<std::uint64_t>> m_values;
+    list_op_type m_op;
 
 protected:
 
     void do_print(std::ostream& out, int level) const override final {
-        out << "IN_INT_LIST\n";
+        out << "IN_INT_LIST[" << operator_name(m_op) << "]\n";
         m_attr->print(out, level + 1);
-        out << " VALUES[...]\n";
+        indent(out, level + 1);
+        out << "VALUES[...]\n";
     }
 
 public:
 
-    explicit InIntegerList(std::unique_ptr<ExprNode>& attr, const std::vector<std::int64_t>& values) :
+    explicit InIntegerList(std::unique_ptr<ExprNode>& attr, list_op_type op, const std::vector<std::int64_t>& values) :
         m_attr(std::move(attr)),
-        m_values(new osmium::index::IdSetSmall<std::uint64_t>) {
+        m_values(new osmium::index::IdSetSmall<std::uint64_t>),
+        m_op(op) {
         assert(m_attr);
         for (auto value : values) {
             m_values->set(std::uint64_t(value));
         }
     }
 
-    explicit InIntegerList(const std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>& params) :
+    explicit InIntegerList(const std::tuple<expr_node<ExprNode>, list_op_type, std::vector<std::int64_t>>& params) :
         m_attr(std::get<0>(params).release()),
-        m_values(new osmium::index::IdSetSmall<std::uint64_t>) {
+        m_values(new osmium::index::IdSetSmall<std::uint64_t>),
+        m_op(std::get<1>(params)) {
         assert(m_attr);
-        for (auto value : std::get<1>(params)) {
+        for (auto value : std::get<2>(params)) {
             m_values->set(std::uint64_t(value));
         }
     }
 
-    explicit InIntegerList(const std::tuple<expr_node<ExprNode>, std::string>& params) :
+    explicit InIntegerList(const std::tuple<expr_node<ExprNode>, list_op_type, std::string>& params) :
         m_attr(std::get<0>(params).release()),
-        m_values(new osmium::index::IdSetDense<std::uint64_t>) {
+        m_values(new osmium::index::IdSetDense<std::uint64_t>),
+        m_op(std::get<1>(params)) {
         assert(m_attr);
 
         std::uint64_t value;
-        std::ifstream input{std::get<1>(params)};
+        std::ifstream input{std::get<2>(params)};
         while (input >> value) {
             m_values->set(value);
         }
@@ -1465,7 +1486,8 @@ public:
 
     bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
         std::int64_t value = m_attr->eval_int(object);
-        return m_values->get(std::uint64_t(value));
+        const bool comp = m_values->get(std::uint64_t(value));
+        return comp == (m_op == list_op_type::in);
     }
 
 }; // class InIntegerList

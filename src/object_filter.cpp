@@ -44,6 +44,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<std::string()> single_q_str, double_q_str, plain_string, string;
     rs<integer_op_type> oper_int;
     rs<string_op_type> oper_str, oper_regex;
+    rs<list_op_type> oper_list;
     rs<std::vector<std::int64_t>()> int_list_value;
 
     rs<expr_node<IntegerAttribute>()> attr_int;
@@ -69,8 +70,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<expr_node<BinaryIntOperation>()> binary_int_oper;
     rs<expr_node<BinaryStrOperation>()> binary_str_oper;
 
-    rs<std::tuple<expr_node<ExprNode>, std::vector<std::int64_t>>()> in_int_list_values_v;
-    rs<std::tuple<expr_node<ExprNode>, std::string>()> in_int_list_filename_v;
+    rs<std::tuple<expr_node<ExprNode>, list_op_type, std::vector<std::int64_t>>()> in_int_list_values_v;
+    rs<std::tuple<expr_node<ExprNode>, list_op_type, std::string>()> in_int_list_filename_v;
     rs<expr_node<InIntegerList>()> in_int_list_values;
     rs<expr_node<InIntegerList>()> in_int_list_filename;
 
@@ -125,6 +126,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         oper_regex     = (qi::lit("=~") > qi::attr(string_op_type::match))
                        | (qi::lit("!~") > qi::attr(string_op_type::not_match));
         oper_regex.name("string regex comparison operand");
+
+        oper_list      = (qi::lit("in")     > qi::attr(list_op_type::in))
+                       | (qi::lit("not in") > qi::attr(list_op_type::not_in));
+        oper_list.name("list comparison operand");
 
         // IntegerAttribute
         attr_int       = (qi::lit("@id")        > qi::attr(integer_attribute_type::id))
@@ -207,10 +212,10 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
                          >> (qi::int_parser<std::int64_t>() % qi::lit(","))
                          >> qi::lit(")");
 
-        in_int_list_values_v = attr_int >> qi::lit("in") >> int_list_value;
+        in_int_list_values_v = attr_int >> oper_list >> int_list_value;
         in_int_list_values = in_int_list_values_v;
 
-        in_int_list_filename_v = attr_int >> qi::lit("in") >> string;
+        in_int_list_filename_v = attr_int >> oper_list >> string;
         in_int_list_filename = in_int_list_filename_v;
 
         subexpr_int      = tags_expr

@@ -26,13 +26,8 @@ Return a boolean
     INT <= INT            - is less or equal
     INT >= INT            - is greater or equal
     INT in (INT, ...)     - is in the list
+    INT not in (INT, ...) - is in the list
 
-The following are not implemented. Do we need them?
-
-    VALUE not in (INT, ...) - is not in the list
-    VALUE any_of (INT, ...)
-    VALUE all_of (INT, ...)
-    VALUE none_of (INT, ...)
 
 # Time comparisons
 
