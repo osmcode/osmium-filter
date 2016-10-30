@@ -19,9 +19,9 @@ partially implemented and things will change.
 
 Return a boolean
 
-    @type=node
-    @type=way
-    @type=relation
+    @type == node
+    @type == way
+    @type == relation
     node
     way
     relation
@@ -31,14 +31,13 @@ Return a boolean
 
 Return a boolean
 
-    VALUE =  INT            - is equal
-    VALUE == INT            - is equal
-    VALUE != INT            - is not equal
-    VALUE <  INT            - is less than
-    VALUE >  INT            - is greater than
-    VALUE <= INT            - is less or equal
-    VALUE >= INT            - is greater or equal
-    VALUE in (INT, ...)     - is in the list
+    INT == INT            - is equal
+    INT != INT            - is not equal
+    INT <  INT            - is less than
+    INT >  INT            - is greater than
+    INT <= INT            - is less or equal
+    INT >= INT            - is greater or equal
+    INT in (INT, ...)     - is in the list
 
 The following are not implemented. Do we need them?
 
@@ -47,20 +46,12 @@ The following are not implemented. Do we need them?
     VALUE all_of (INT, ...)
     VALUE none_of (INT, ...)
 
-    VALUE = INT-
-    VALUE = -INT
-    VALUE = INT-INT
-    VALUE = INT:
-    VALUE = :INT
-    VALUE = INT:INT
-
 # Time comparisons
 
 NOT YET IMPLEMENTED
 
 Return a boolean
 
-    VALUE =  TIMESTAMP            - is equal
     VALUE == TIMESTAMP            - is equal
     VALUE != TIMESTAMP            - is not equal
     VALUE <  TIMESTAMP            - is less than
@@ -76,16 +67,15 @@ Return a boolean
 
 Return a boolean
 
-    VALUE =  "STRING"       - is equal
+    VALUE == "STRING"       - is equal
     VALUE != "STRING"       - is not equal
-    VALUE ~  "STRING"       - matches the regular expression
+    VALUE =^ "STRING"       - prefix equal
+    VALUE !^ "STRING"       - prefix not equal
+    VALUE =~ "STRING"       - matches the regular expression
     VALUE !~ "STRING"       - does not match the regular expression
 
     VALUE =~ "STRING"i      - matches the regular expression
     VALUE =~ /STRING/       - matches the regular expression
-
-Allow "==" as alternative for "="?
-Allow "=~" as alternative for "~"?
 
 Not yet implemented:
     VALUE in ("STRING", "STRING", ...)
@@ -103,7 +93,6 @@ Return an int value
 
     @id
 
-shortcut: bare integer is `@id=`
 
 ## Unsigned integer attributes
 

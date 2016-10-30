@@ -104,7 +104,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         string.name("string");
 
         // operator for integer comparison
-        oper_int       = (qi::lit("=")  > qi::attr(integer_op_type::equal))
+        oper_int       = (qi::lit("==") > qi::attr(integer_op_type::equal))
                        | (qi::lit("!=") > qi::attr(integer_op_type::not_equal))
                        | (qi::lit("<=") > qi::attr(integer_op_type::less_or_equal))
                        | (qi::lit("<")  > qi::attr(integer_op_type::less_than))
@@ -113,14 +113,14 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         oper_int.name("integer comparison operand");
 
         // operator for simple string comparison
-        oper_str       = (qi::lit("=")   > qi::attr(string_op_type::equal))
-                       | (qi::lit("!=")  > qi::attr(string_op_type::not_equal))
-                       | (qi::lit("^=")  > qi::attr(string_op_type::prefix_equal))
-                       | (qi::lit("!^=") > qi::attr(string_op_type::prefix_not_equal));
+        oper_str       = (qi::lit("==") > qi::attr(string_op_type::equal))
+                       | (qi::lit("!=") > qi::attr(string_op_type::not_equal))
+                       | (qi::lit("=^") > qi::attr(string_op_type::prefix_equal))
+                       | (qi::lit("!^") > qi::attr(string_op_type::prefix_not_equal));
         oper_str.name("string comparison operand");
 
         // operator for regex string comparison
-        oper_regex     = (qi::lit("~")  > qi::attr(string_op_type::match))
+        oper_regex     = (qi::lit("=~") > qi::attr(string_op_type::match))
                        | (qi::lit("!~") > qi::attr(string_op_type::not_match));
         oper_regex.name("string regex comparison operand");
 
@@ -163,7 +163,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
 
         // CheckObjectTypeExpr
         attr_type      = qi::lit("@type")
-                       > '='
+                       > qi::lit("==")
                        > object_type;
         attr_type.name("object type");
 

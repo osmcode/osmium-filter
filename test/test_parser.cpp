@@ -40,17 +40,17 @@ TEST_CASE("boolean expressions") {
 
 TEST_CASE("object types") {
     check("node", eb::node, "HAS_TYPE[node]");
-    check("@type = node", eb::node, "HAS_TYPE[node]");
+    check("@type == node", eb::node, "HAS_TYPE[node]");
     check("way", eb::way, "HAS_TYPE[way]");
-    check("@type = way", eb::way, "HAS_TYPE[way]");
+    check("@type == way", eb::way, "HAS_TYPE[way]");
     check("relation", eb::relation, "HAS_TYPE[relation]");
-    check("@type = relation", eb::relation, "HAS_TYPE[relation]");
+    check("@type == relation", eb::relation, "HAS_TYPE[relation]");
     check("node or way", eb::node | eb::way, "BOOL_OR\n HAS_TYPE[node]\n HAS_TYPE[way]");
-    check("node and @type = way", eb::nothing, "BOOL_AND\n HAS_TYPE[node]\n HAS_TYPE[way]");
+    check("node and @type == way", eb::nothing, "BOOL_AND\n HAS_TYPE[node]\n HAS_TYPE[way]");
 }
 
 TEST_CASE("integer comparison") {
-    check("@id =  1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[id]\n INT_VALUE[1]");
+    check("@id == 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[id]\n INT_VALUE[1]");
     check("@id != 1", eb::nwr, "INT_BIN_OP[not_equal]\n INT_ATTR[id]\n INT_VALUE[1]");
     check("@id <  1", eb::nwr, "INT_BIN_OP[less_than]\n INT_ATTR[id]\n INT_VALUE[1]");
     check("@id >  1", eb::nwr, "INT_BIN_OP[greater_than]\n INT_ATTR[id]\n INT_VALUE[1]");
@@ -61,39 +61,39 @@ TEST_CASE("integer comparison") {
 }
 
 TEST_CASE("string comparison") {
-    check("@user =   'foo'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
-    check("@user !=  'foo'", eb::nwr, "BIN_STR_OP[not_equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
-    check("@user ^=  'foo'", eb::nwr, "BIN_STR_OP[prefix_equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
-    check("@user !^= 'foo'", eb::nwr, "BIN_STR_OP[prefix_not_equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
-    check("@user ~   'foo'", eb::nwr, "BIN_STR_OP[match]\n STR_ATTR[user]\n REGEX_VALUE[foo]");
-    check("@user !~  'foo'", eb::nwr, "BIN_STR_OP[not_match]\n STR_ATTR[user]\n REGEX_VALUE[foo]");
+    check("@user == 'foo'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user != 'foo'", eb::nwr, "BIN_STR_OP[not_equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user =^ 'foo'", eb::nwr, "BIN_STR_OP[prefix_equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user !^ 'foo'", eb::nwr, "BIN_STR_OP[prefix_not_equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user =~ 'foo'", eb::nwr, "BIN_STR_OP[match]\n STR_ATTR[user]\n REGEX_VALUE[foo]");
+    check("@user !~ 'foo'", eb::nwr, "BIN_STR_OP[not_match]\n STR_ATTR[user]\n REGEX_VALUE[foo]");
 }
 
 TEST_CASE("string value") {
-    check("@user = 'foo'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
-    check("@user = \"foo\"", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
-    check("@user = foo", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user == 'foo'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user == \"foo\"", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user == foo", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
 }
 
 TEST_CASE("simple integer attributes") {
-    check("@id        = 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[id]\n INT_VALUE[1]");
-    check("@version   = 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[version]\n INT_VALUE[1]");
-    check("@uid       = 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[uid]\n INT_VALUE[1]");
-    check("@changeset = 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[changeset]\n INT_VALUE[1]");
+    check("@id        == 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[id]\n INT_VALUE[1]");
+    check("@version   == 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[version]\n INT_VALUE[1]");
+    check("@uid       == 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[uid]\n INT_VALUE[1]");
+    check("@changeset == 1", eb::nwr, "INT_BIN_OP[equal]\n INT_ATTR[changeset]\n INT_VALUE[1]");
 }
 
 TEST_CASE("has key") {
     check("'highway'", eb::nwr, "HAS_KEY[highway]");
-    check("'highway' =  'primary'", eb::nwr, "CHECK_TAG[highway][equal][primary]");
+    check("'highway' == 'primary'", eb::nwr, "CHECK_TAG[highway][equal][primary]");
     check("'highway' != 'primary'", eb::nwr, "CHECK_TAG[highway][not_equal][primary]");
-    check("'highway' ~  'primary'", eb::nwr, "CHECK_TAG[highway][match][primary][]");
+    check("'highway' =~ 'primary'", eb::nwr, "CHECK_TAG[highway][match][primary][]");
     check("'highway' !~ 'primary'", eb::nwr, "CHECK_TAG[highway][not_match][primary][]");
-    check("'highway' ~  'primary'i", eb::nwr, "CHECK_TAG[highway][match][primary][IGNORE_CASE]");
+    check("'highway' =~ 'primary'i", eb::nwr, "CHECK_TAG[highway][match][primary][IGNORE_CASE]");
     check("'highway' !~ 'primary'i", eb::nwr, "CHECK_TAG[highway][not_match][primary][IGNORE_CASE]");
 }
 
 TEST_CASE("closed way") {
     check("closed_way", eb::way, "CLOSED_WAY");
-    check("closed_way or (relation and 'type'='multipolygon')", eb::way | eb::relation, "BOOL_OR\n CLOSED_WAY\n BOOL_AND\n  HAS_TYPE[relation]\n  CHECK_TAG[type][equal][multipolygon]");
+    check("closed_way or (relation and 'type' == 'multipolygon')", eb::way | eb::relation, "BOOL_OR\n CLOSED_WAY\n BOOL_AND\n  HAS_TYPE[relation]\n  CHECK_TAG[type][equal][multipolygon]");
 }
 
