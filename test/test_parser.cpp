@@ -53,10 +53,13 @@ TEST_CASE("integer comparison") {
     check("@id >  1", eb::nwr, "INT_BIN_OP[greater_than]\n INT_ATTR[id]\n INT_VALUE[1]");
     check("@id <= 1", eb::nwr, "INT_BIN_OP[less_or_equal]\n INT_ATTR[id]\n INT_VALUE[1]");
     check("@id >= 1", eb::nwr, "INT_BIN_OP[greater_or_equal]\n INT_ATTR[id]\n INT_VALUE[1]");
-    check("@id in (71, 28)", eb::nwr, "IN_INT_LIST[in]\n INT_ATTR[id]\n VALUES[...]");
-    check("@id not in (71, 28)", eb::nwr, "IN_INT_LIST[not_in]\n INT_ATTR[id]\n VALUES[...]");
-    check("not @id in (71, 28)", eb::nwr, "BOOL_NOT\n IN_INT_LIST[in]\n  INT_ATTR[id]\n  VALUES[...]");
-// XXX    check("@id in 'filename'", eb::nwr, "IN_INT_LIST\n INT_ATTR[id]\n FROM_FILE[filename]");
+}
+
+TEST_CASE("integer list comparison") {
+    check("@id in (71, 28)",      eb::nwr, "IN_INT_LIST[in]\n INT_ATTR[id]\n VALUES[...]");
+    check("@id not in (71, 28)",  eb::nwr, "IN_INT_LIST[not_in]\n INT_ATTR[id]\n VALUES[...]");
+    check("not @id in (71, 28)",  eb::nwr, "BOOL_NOT\n IN_INT_LIST[in]\n  INT_ATTR[id]\n  VALUES[...]");
+    check("@id in (<'somefile')", eb::nwr, "IN_INT_LIST[in]\n INT_ATTR[id]\n FROM_FILE[somefile]");
 }
 
 TEST_CASE("string comparison") {

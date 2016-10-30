@@ -1434,6 +1434,7 @@ class InIntegerList : public BoolExpression {
 
     std::unique_ptr<ExprNode> m_attr;
     std::unique_ptr<osmium::index::IdSet<std::uint64_t>> m_values;
+    std::string m_filename;
     list_op_type m_op;
 
 protected:
@@ -1442,7 +1443,19 @@ protected:
         out << "IN_INT_LIST[" << operator_name(m_op) << "]\n";
         m_attr->print(out, level + 1);
         indent(out, level + 1);
-        out << "VALUES[...]\n";
+        if (m_filename.empty()) {
+            out << "VALUES[...]\n";
+        } else {
+            out << "FROM_FILE[" << m_filename << "]\n";
+        }
+    }
+
+    void load_file() {
+        std::uint64_t value;
+        std::ifstream input{m_filename};
+        while (input >> value) {
+            m_values->set(value);
+        }
     }
 
 public:
@@ -1450,6 +1463,7 @@ public:
     explicit InIntegerList(std::unique_ptr<ExprNode>& attr, list_op_type op, const std::vector<std::int64_t>& values) :
         m_attr(std::move(attr)),
         m_values(new osmium::index::IdSetSmall<std::uint64_t>),
+        m_filename(),
         m_op(op) {
         assert(m_attr);
         for (auto value : values) {
@@ -1460,6 +1474,7 @@ public:
     explicit InIntegerList(const std::tuple<expr_node<ExprNode>, list_op_type, std::vector<std::int64_t>>& params) :
         m_attr(std::get<0>(params).release()),
         m_values(new osmium::index::IdSetSmall<std::uint64_t>),
+        m_filename(),
         m_op(std::get<1>(params)) {
         assert(m_attr);
         for (auto value : std::get<2>(params)) {
@@ -1470,14 +1485,10 @@ public:
     explicit InIntegerList(const std::tuple<expr_node<ExprNode>, list_op_type, std::string>& params) :
         m_attr(std::get<0>(params).release()),
         m_values(new osmium::index::IdSetDense<std::uint64_t>),
+        m_filename(std::get<2>(params)),
         m_op(std::get<1>(params)) {
         assert(m_attr);
-
-        std::uint64_t value;
-        std::ifstream input{std::get<2>(params)};
-        while (input >> value) {
-            m_values->set(value);
-        }
+        load_file();
     }
 
     expr_node_type expression_type() const noexcept override final {
