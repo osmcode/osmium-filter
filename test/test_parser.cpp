@@ -75,6 +75,9 @@ TEST_CASE("string value") {
     check("@user == 'foo'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
     check("@user == \"foo\"", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
     check("@user == foo", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[foo]");
+    check("@user == ' foo'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[ foo]");
+    check("@user == ' foo '", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[ foo ]");
+    check("@user == '1 2 3'", eb::nwr, "BIN_STR_OP[equal]\n STR_ATTR[user]\n STR_VALUE[1 2 3]");
 }
 
 TEST_CASE("simple integer attributes") {

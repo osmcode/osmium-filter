@@ -84,20 +84,26 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         OSMObjectFilterGrammar::base_type(start_rule, "OSM Object Filter Grammar") {
 
         // single quoted string
-        single_q_str   = qi::lit('\'')
-                       > *(~qi::char_('\''))
-                       > qi::lit('\'');
+        single_q_str   = qi::lexeme[
+                           qi::lit('\'')
+                           > *(~qi::char_('\''))
+                           > qi::lit('\'')
+                         ];
         single_q_str.name("single quoted string");
 
         // double quoted string (XXX TODO: escapes, unicode)
-        double_q_str   = qi::lit('"')
-                       > *(~qi::char_('"'))
-                       > qi::lit('"');
+        double_q_str   = qi::lexeme[
+                             qi::lit('"')
+                           > *(~qi::char_('"'))
+                           > qi::lit('"')
+                         ];
         double_q_str.name("double quoted string");
 
         // plain string as used in keys and values
-        plain_string   =   qi::char_("a-zA-Z")
-                       >> *qi::char_("a-zA-Z0-9:_");
+        plain_string   = qi::lexeme[
+                              qi::char_("a-zA-Z")
+                           > *qi::char_("a-zA-Z0-9:_")
+                         ];
         plain_string.name("plain string");
 
         // any kind of string
