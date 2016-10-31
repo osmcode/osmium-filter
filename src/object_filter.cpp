@@ -334,8 +334,12 @@ OSMObjectFilter::OSMObjectFilter(const std::string& input) {
         root
     );
 
-    if (!result || first != last) {
-        throw std::runtime_error{"Can not parse expression"};
+    if (!result) {
+        throw expression_parser_error{input};
+    }
+
+    if (first != last) {
+        throw expression_parser_error{input, static_cast<int>(std::distance(input.cbegin(), first))};
     }
 
     assert(root.get());

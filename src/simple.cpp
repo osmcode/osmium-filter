@@ -107,94 +107,105 @@ int main(int argc, char* argv[]) {
                                  std::istreambuf_iterator<char>{});
     }
 
-    OSMObjectFilter filter{filter_expression};
+    try {
+        OSMObjectFilter filter{filter_expression};
 
-    if (filter.entities() == osmium::osm_entity_bits::nothing) {
-        std::cerr << "Filter expression can never match. Stopping.\n";
-        return 1;
-    }
-
-    if (verbose) {
-        filter.print_tree(std::cerr);
-
-        const auto e = filter.entities();
-        std::cerr << "entities:";
-        if (e & osmium::osm_entity_bits::node) {
-            std::cerr << " node";
+        if (filter.entities() == osmium::osm_entity_bits::nothing) {
+            std::cerr << "Filter expression can never match. Stopping.\n";
+            return 1;
         }
-        if (e & osmium::osm_entity_bits::way) {
-            std::cerr << " way";
+
+        if (verbose) {
+            filter.print_tree(std::cerr);
+
+            const auto e = filter.entities();
+            std::cerr << "entities:";
+            if (e & osmium::osm_entity_bits::node) {
+                std::cerr << " node";
+            }
+            if (e & osmium::osm_entity_bits::way) {
+                std::cerr << " way";
+            }
+            if (e & osmium::osm_entity_bits::relation) {
+                std::cerr << " relation";
+            }
+            std::cerr << "\n";
         }
-        if (e & osmium::osm_entity_bits::relation) {
-            std::cerr << " relation";
+
+        // With --dry-run or -n we are done.
+        if (!run) {
+            return 0;
         }
-        std::cerr << "\n";
-    }
 
-    // With --dry-run or -n we are done.
-    if (!run) {
-        return 0;
-    }
+        filter.prepare();
 
-    filter.prepare();
+        if (complete_ways) {
+            osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
 
-    if (complete_ways) {
-        osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
-
-        {
-            osmium::io::Reader reader{input_filename, filter.entities()};
-            while (osmium::memory::Buffer buffer = reader.read()) {
-                for (const auto& object : buffer.select<osmium::OSMObject>()) {
-                    if (filter.match(object)) {
-                        ids(object.type()).set(object.positive_id());
-                        if (object.type() == osmium::item_type::way) {
-                            for (const auto& nr : static_cast<const osmium::Way&>(object).nodes()) {
-                                ids(osmium::item_type::node).set(nr.positive_ref());
+            {
+                osmium::io::Reader reader{input_filename, filter.entities()};
+                while (osmium::memory::Buffer buffer = reader.read()) {
+                    for (const auto& object : buffer.select<osmium::OSMObject>()) {
+                        if (filter.match(object)) {
+                            ids(object.type()).set(object.positive_id());
+                            if (object.type() == osmium::item_type::way) {
+                                for (const auto& nr : static_cast<const osmium::Way&>(object).nodes()) {
+                                    ids(osmium::item_type::node).set(nr.positive_ref());
+                                }
                             }
                         }
                     }
                 }
+                reader.close();
             }
+
+            osmium::io::Reader reader{input_filename};
+
+            osmium::io::File output_file{output_filename, output_format};
+            osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
+
+            osmium::ProgressBar progress_bar{reader.file_size(), true};
+            while (osmium::memory::Buffer buffer = reader.read()) {
+                progress_bar.update(reader.offset());
+                for (const auto& object : buffer.select<osmium::OSMObject>()) {
+                    if (ids(object.type()).get(object.positive_id())) {
+                        writer(object);
+                    }
+                }
+            }
+            progress_bar.done();
+
             reader.close();
-        }
+            writer.close();
+        } else {
+            osmium::io::Reader reader{input_filename, filter.entities()};
 
-        osmium::io::Reader reader{input_filename};
+            osmium::io::File output_file{output_filename, output_format};
+            osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
 
-        osmium::io::File output_file{output_filename, output_format};
-        osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
-
-        osmium::ProgressBar progress_bar{reader.file_size(), true};
-        while (osmium::memory::Buffer buffer = reader.read()) {
-            progress_bar.update(reader.offset());
-            for (const auto& object : buffer.select<osmium::OSMObject>()) {
-                if (ids(object.type()).get(object.positive_id())) {
-                    writer(object);
+            osmium::ProgressBar progress_bar{reader.file_size(), true};
+            while (osmium::memory::Buffer buffer = reader.read()) {
+                progress_bar.update(reader.offset());
+                for (const auto& object : buffer.select<osmium::OSMObject>()) {
+                    if (filter.match(object)) {
+                        writer(object);
+                    }
                 }
             }
+            progress_bar.done();
+
+            reader.close();
+            writer.close();
         }
-        progress_bar.done();
-
-        reader.close();
-        writer.close();
-    } else {
-        osmium::io::Reader reader{input_filename, filter.entities()};
-
-        osmium::io::File output_file{output_filename, output_format};
-        osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
-
-        osmium::ProgressBar progress_bar{reader.file_size(), true};
-        while (osmium::memory::Buffer buffer = reader.read()) {
-            progress_bar.update(reader.offset());
-            for (const auto& object : buffer.select<osmium::OSMObject>()) {
-                if (filter.match(object)) {
-                    writer(object);
-                }
+    } catch (const expression_parser_error& e) {
+        std::cerr << "Error parsing filter expression:\n";
+        std::cerr << e.input() << "\n";
+        if (e.pos() >= 0) {
+            for (auto i = e.pos(); i > 0; --i) {
+                std::cerr << ' ';
             }
         }
-        progress_bar.done();
-
-        reader.close();
-        writer.close();
+        std::cerr << "^\n";
     }
 
     return 0;

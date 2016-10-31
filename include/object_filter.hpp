@@ -1567,6 +1567,34 @@ public:
 
 }; // class InIntegerList
 
+class expression_parser_error : public std::runtime_error {
+
+    std::string m_input;
+    int m_pos;
+
+public:
+
+    expression_parser_error(const std::string& input) :
+        std::runtime_error(std::string{"Expression parsing error"}),
+        m_input(input),
+        m_pos(-1) {
+    }
+
+    expression_parser_error(const std::string& input, int pos) :
+        std::runtime_error(std::string{"Expression parsing error at position "} + std::to_string(pos)),
+        m_input(input),
+        m_pos(pos) {
+    }
+
+    const std::string& input() const noexcept {
+        return m_input;
+    }
+
+    int pos() const noexcept {
+        return m_pos;
+    }
+
+}; // class expression_parser_error
 
 class OSMObjectFilter {
 

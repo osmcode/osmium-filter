@@ -97,7 +97,9 @@ TEST_CASE("boolean attributes") {
 
 TEST_CASE("has key") {
     check("'highway'", eb::nwr, "HAS_KEY[highway]");
+    check("highway",   eb::nwr, "HAS_KEY[highway]");
     check("'highway' == 'primary'", eb::nwr, "CHECK_TAG[highway][equal][primary]");
+    check(" highway  ==  primary ", eb::nwr, "CHECK_TAG[highway][equal][primary]");
     check("'highway' != 'primary'", eb::nwr, "CHECK_TAG[highway][not_equal][primary]");
     check("'highway' =~ 'primary'", eb::nwr, "CHECK_TAG[highway][match][primary][]");
     check("'highway' !~ 'primary'", eb::nwr, "CHECK_TAG[highway][not_match][primary][]");
