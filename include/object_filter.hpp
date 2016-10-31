@@ -1479,7 +1479,24 @@ protected:
         m_attr->print(out, level + 1);
         indent(out, level + 1);
         if (m_filename.empty()) {
-            out << "VALUES[...]\n";
+            out << "VALUES[";
+            auto* ids = dynamic_cast<osmium::index::IdSetSmall<std::uint64_t>*>(m_values.get());
+            if (ids) {
+                auto it = ids->cbegin();
+                if (it != ids->cend()) {
+                    out << *it;
+                    ++it;
+                }
+                for (int i = 4; i > 0 && it != ids->cend(); ++it, --i) {
+                    out << ", " << *it;
+                }
+                if (it != ids->cend()) {
+                    out << ", ...";
+                }
+            } else {
+                out << "...";
+            }
+            out << "]\n";
         } else {
             out << "FROM_FILE[" << m_filename << "]\n";
         }

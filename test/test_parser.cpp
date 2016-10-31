@@ -56,9 +56,9 @@ TEST_CASE("integer comparison") {
 }
 
 TEST_CASE("integer list comparison") {
-    check("@id in (71, 28)",      eb::nwr, "IN_INT_LIST[in]\n INT_ATTR[id]\n VALUES[...]");
-    check("@id not in (71, 28)",  eb::nwr, "IN_INT_LIST[not_in]\n INT_ATTR[id]\n VALUES[...]");
-    check("not @id in (71, 28)",  eb::nwr, "BOOL_NOT\n IN_INT_LIST[in]\n  INT_ATTR[id]\n  VALUES[...]");
+    check("@id in (71, 28)",      eb::nwr, "IN_INT_LIST[in]\n INT_ATTR[id]\n VALUES[71, 28]");
+    check("@id not in (71, 28)",  eb::nwr, "IN_INT_LIST[not_in]\n INT_ATTR[id]\n VALUES[71, 28]");
+    check("not @id in (71, 28)",  eb::nwr, "BOOL_NOT\n IN_INT_LIST[in]\n  INT_ATTR[id]\n  VALUES[71, 28]");
     check("@id in (<'somefile')", eb::nwr, "IN_INT_LIST[in]\n INT_ATTR[id]\n FROM_FILE[somefile]");
 }
 
