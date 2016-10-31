@@ -1548,17 +1548,19 @@ public:
 
     void prepare() override final {
         m_attr->prepare();
-        if (!m_values) {
-            m_values.reset(new osmium::index::IdSetDense<std::uint64_t>);
-        } else {
-            m_values->clear();
+        if (!m_filename.empty()) {
+            if (!m_values) {
+                m_values.reset(new osmium::index::IdSetDense<std::uint64_t>);
+            } else {
+                m_values->clear();
+            }
+            load_file();
         }
-        load_file();
     }
 
     bool eval_bool(const osmium::OSMObject& object) const noexcept override final {
         assert(m_values);
-        std::int64_t value = m_attr->eval_int(object);
+        const std::int64_t value = m_attr->eval_int(object);
         const bool comp = m_values->get(std::uint64_t(value));
         return comp == (m_op == list_op_type::in);
     }
