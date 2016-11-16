@@ -134,7 +134,8 @@ getter_func_int attr_to_func_int(integer_attribute_type attr) {
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 
 getter_func_str attr_to_func_str(string_attribute_type attr) {
@@ -144,7 +145,8 @@ getter_func_str attr_to_func_str(string_attribute_type attr) {
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 
 NativeJIT::Node<std::int64_t>& CompiledFilter::compile_integer_attribute(const ExprNode* e) {
@@ -197,7 +199,8 @@ NativeJIT::Node<bool>& CompiledFilter::compile_binary_int_op(const ExprNode* e) 
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 
 #if 0
@@ -245,7 +248,7 @@ NativeJIT::Node<bool>& CompiledFilter::compile_binary_str_op(const ExprNode* e) 
             default:
                 break;
         }
-        assert(false);
+        throw std::runtime_error{"should never be here"};
     } else {
         auto& r = compile_regex(x->rhs());
 
@@ -336,7 +339,8 @@ NativeJIT::Node<bool>& CompiledFilter::compile_bool(const ExprNode* node) {
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 
 NativeJIT::Node<std::int64_t>& CompiledFilter::compile_int(const ExprNode* node) {
@@ -348,7 +352,8 @@ NativeJIT::Node<std::int64_t>& CompiledFilter::compile_int(const ExprNode* node)
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 
 NativeJIT::Node<const char*>& CompiledFilter::compile_str(const ExprNode* node) {
@@ -360,7 +365,8 @@ NativeJIT::Node<const char*>& CompiledFilter::compile_str(const ExprNode* node) 
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 
 NativeJIT::Node<const std::regex*>& CompiledFilter::compile_regex(const ExprNode* node) {
@@ -370,6 +376,7 @@ NativeJIT::Node<const std::regex*>& CompiledFilter::compile_regex(const ExprNode
         default:
             break;
     }
-    assert(false);
+
+    throw std::runtime_error{"should never be here"};
 }
 

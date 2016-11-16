@@ -832,7 +832,7 @@ public:
                 break;
         }
 
-        assert(false);
+        throw std::runtime_error{"should never be here"};
     }
 
     std::int64_t eval_int(const osmium::NodeRef& nr) const override final {
@@ -884,7 +884,7 @@ public:
             return tag.value();
         }
 
-        assert(false);
+        throw std::runtime_error{"should never be here"};
     }
 
     const char* eval_string(const osmium::RelationMember& member) const override final {
@@ -936,6 +936,7 @@ public:
         }
 
         assert(false);
+        return std::make_pair(osmium::osm_entity_bits::nothing, osmium::osm_entity_bits::nothing);
     }
 
     bool eval_bool(const osmium::OSMObject& object) const override final {
@@ -954,7 +955,7 @@ public:
                 return object.type() == osmium::item_type::way && !static_cast<const osmium::Way&>(object).is_closed();
         }
 
-        assert(false);
+        throw std::runtime_error{"should never be here"};
     }
 
 }; // class BooleanAttribute
