@@ -107,3 +107,13 @@ TEST_CASE("has key") {
     check("'highway' !~ 'primary'i", eb::nwr, "CHECK_TAG[highway][not_match][primary][IGNORE_CASE]");
 }
 
+TEST_CASE("tags with subexpression") {
+    check("@tags[ @key == 'highway' ] >  0", eb::nwr, "INT_BIN_OP[greater_than]\n COUNT_TAGS\n  BIN_STR_OP[equal]\n   STR_ATTR[key]\n   STR_VALUE[highway]\n INT_VALUE[0]");
+    check("@tags[ @key == 'highway' ] == 0", eb::nwr, "INT_BIN_OP[equal]\n COUNT_TAGS\n  BIN_STR_OP[equal]\n   STR_ATTR[key]\n   STR_VALUE[highway]\n INT_VALUE[0]");
+}
+
+TEST_CASE("tags without subexpression") {
+    check("@tags >  0", eb::nwr, "INT_BIN_OP[greater_than]\n COUNT_TAGS\n  TRUE\n INT_VALUE[0]");
+    check("@tags == 0", eb::nwr, "INT_BIN_OP[equal]\n COUNT_TAGS\n  TRUE\n INT_VALUE[0]");
+}
+

@@ -56,7 +56,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
     rs<expr_node<OrExpr>()> expression;
     rs<expr_node<AndExpr>()> term;
     rs<expr_node<NotExpr>()> not_factor;
-    rs<expr_node<BooleanValue>()> bool_true, bool_false;
+    rs<expr_node<BooleanValue>()> static_true, bool_true, bool_false;
     rs<expr_node<IntegerValue>()> int_value;
     rs<expr_node<CheckHasKeyExpr>()> key;
     rs<expr_node<StringValue>()> str_value;
@@ -162,6 +162,8 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         attr_boolean.name("boolean attribute");
 
         // BooleanValue
+        static_true    = qi::attr(true);
+
         bool_true      = qi::lit("true")  > qi::attr(true);
         bool_true.name("true");
 
@@ -207,7 +209,7 @@ struct OSMObjectFilterGrammar : qi::grammar<Iterator, comment_skipper<Iterator>,
         tag            = tag_str | tag_regex;
         tag.name("tag");
 
-        subexpression  = qi::lit('[') > expression > qi::lit(']');
+        subexpression  = (qi::lit('[') > expression > qi::lit(']')) | static_true;
         subexpression.name("subexpression");
 
         // TagsExpr

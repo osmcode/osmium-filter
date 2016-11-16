@@ -15,7 +15,6 @@
 #include <vector>
 
 #include <boost/optional.hpp>
-#include <boost/variant.hpp>
 
 #include <osmium/index/id_set.hpp>
 #include <osmium/osm/entity_bits.hpp>
