@@ -18,7 +18,6 @@
 #include <osmium/util/file.hpp>
 
 #include "object_filter.hpp"
-#include "compiled_filter.hpp"
 
 namespace po = boost::program_options;
 
@@ -143,13 +142,11 @@ int main(int argc, char* argv[]) {
     const osmium::util::MemoryMapping mapping{size, osmium::util::MemoryMapping::mapping_mode::readonly, fd};
     const osmium::memory::Buffer buffer{mapping.get_addr<unsigned char>(), mapping.size()};
 
-    CompiledFilter cfilter{filter};
-
     if (complete_ways) {
         osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
 
         for (const auto& object : buffer.select<osmium::OSMObject>()) {
-            if (cfilter.match(object)) {
+            if (filter.match(object)) {
                 ids(object.type()).set(object.positive_id());
                 if (object.type() == osmium::item_type::way) {
                     for (const auto& nr : static_cast<const osmium::Way&>(object).nodes()) {
@@ -174,7 +171,7 @@ int main(int argc, char* argv[]) {
         osmium::io::Writer writer{output_file, osmium::io::overwrite::allow};
 
         for (const auto& object : buffer.select<osmium::OSMObject>()) {
-            if (cfilter.match(object)) {
+            if (filter.match(object)) {
                 writer(object);
             }
         }

@@ -50,14 +50,6 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 find_package(Osmium 2.9.0 REQUIRED COMPONENTS io)
 include_directories(SYSTEM ${OSMIUM_INCLUDE_DIRS})
 
-find_path(NativeJIT_INCLUDE_DIR NativeJIT/model.h)
-find_library(NativeJIT_LIBRARY NAMES NativeJIT)
-find_library(CodeGen_LIBRARY NAMES CodeGen)
-list(APPEND NativeJIT_LIBRARIES ${NativeJIT_LIBRARY})
-list(APPEND NativeJIT_LIBRARIES ${CodeGen_LIBRARY})
-
-include_directories(SYSTEM ${NativeJIT_INCLUDE_DIR})
-link_directories(${NATIVEJIT_LIB_PATH})
 
 #-----------------------------------------------------------------------------
 #
@@ -100,34 +92,18 @@ endif()
 
 #-----------------------------------------------------------------------------
 #
-#  Decide which C++ version to use (Minimum/default: C++14).
+#  Decide which C++ version to use (Minimum/default: C++11).
 #
 #-----------------------------------------------------------------------------
-if (WIN32 OR CYGWIN)
-  set(NATIVEJIT_PLATFORM_POSIX 0)
-  set(NATIVEJIT_PLATFORM_WINDOWS 1)
-else()
-  set(NATIVEJIT_PLATFORM_POSIX 1)
-  set(NATIVEJIT_PLATFORM_WINDOWS 0)
-endif()
-
-if(NATIVEJIT_PLATFORM_WINDOWS)
-  # Note: -D works for both MSVC and GCC/Clang.
-  set(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -DNATIVEJIT_PLATFORM_WINDOWS")
-else()
-  set(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} -DNATIVEJIT_PLATFORM_POSIX")
-endif()
-
-
-if(MSVC)
-  set(COMMON_CXX_FLAGS "${COMMON_CXX_FLAGS} /W4 /WX")
-  set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} ${COMMON_CXX_FLAGS} /MTd")
-  set(CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE} ${COMMON_CXX_FLAGS} /MT")
-elseif(CMAKE_COMPILER_IS_GNUCXX)
-  # Need gnu++ instead of c++ so that GTest can access fdopen() etc.
-  set(CMAKE_CXX_FLAGS "-march=native -std=gnu++14 -Wall -Wextra -Wold-style-cast -Wno-strict-aliasing")
-else()
-  set(CMAKE_CXX_FLAGS "-march=native -std=c++14 -Wall -Wextra -Wold-style-cast -Wno-strict-aliasing")
+if(NOT MSVC)
+    if(NOT USE_CPP_VERSION)
+        set(USE_CPP_VERSION c++11)
+    endif()
+    message(STATUS "Use C++ version: ${USE_CPP_VERSION}")
+    # following only available from cmake 2.8.12:
+    #   add_compile_options(-std=${USE_CPP_VERSION})
+    # so using this instead:
+    add_definitions(-std=${USE_CPP_VERSION})
 endif()
 
 

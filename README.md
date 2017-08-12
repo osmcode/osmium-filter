@@ -1,20 +1,16 @@
 
 # Osmium Filter
 
-Work-in-progress experimental superfast filter for OSM data.
+Work-in-progress experimental fast and flexible filter for OSM data.
 
 Do not use this for production work. The expression language (see below) will change!
 
 ## Dependencies
 
 * [libosmium](https://github.com/osmcode/libosmium)
-* [NativeJIT](https://github.com/bitfunnel/nativejit/)
 
 
 ## Building
-
-Get and build NativeJIT first. Installing NativeJIT with "make install" does
-not work currently.
 
 Then in the osmium-filter directory:
 
@@ -22,9 +18,6 @@ Then in the osmium-filter directory:
     cd build
     cmake ..
     make
-
-You'll have to set the include paths and libs for NativeJIT on the `cmake`
-command line or using `ccmake` for this to work.
 
 The `osmium-filter` binary is created in the `src` directory.
 
