@@ -9,13 +9,15 @@
 #include <string>
 #include <vector>
 
+#include <osmium/index/id_set.hpp>
+#include <osmium/index/nwr_array.hpp>
 #include <osmium/io/any_output.hpp>
 #include <osmium/io/file.hpp>
 #include <osmium/io/writer_options.hpp>
 #include <osmium/memory/buffer.hpp>
 #include <osmium/osm/object.hpp>
-#include <osmium/util/memory_mapping.hpp>
 #include <osmium/util/file.hpp>
+#include <osmium/util/memory_mapping.hpp>
 
 #include "object_filter.hpp"
 
@@ -143,7 +145,7 @@ int main(int argc, char* argv[]) {
     const osmium::memory::Buffer buffer{mapping.get_addr<unsigned char>(), mapping.size()};
 
     if (complete_ways) {
-        osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
+        osmium::nwr_array<osmium::index::IdSetDense<osmium::unsigned_object_id_type>> ids;
 
         for (const auto& object : buffer.select<osmium::OSMObject>()) {
             if (filter.match(object)) {

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <osmium/index/id_set.hpp>
+#include <osmium/index/nwr_array.hpp>
 #include <osmium/io/any_input.hpp>
 #include <osmium/io/any_output.hpp>
 #include <osmium/io/file.hpp>
@@ -140,7 +141,7 @@ int main(int argc, char* argv[]) {
         filter.prepare();
 
         if (complete_ways) {
-            osmium::index::NWRIdSet<osmium::index::IdSetDense> ids;
+            osmium::nwr_array<osmium::index::IdSetDense<osmium::unsigned_object_id_type>> ids;
 
             {
                 osmium::io::Reader reader{input_filename, filter.entities()};
